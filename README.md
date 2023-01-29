@@ -73,6 +73,22 @@ Get inspired from this example:
 python catch.py -l ../HTTP_LOGS_DTATSETS/SECREPO_LOGS/access.log.2021-10-22 --log_type apache --show_plots --standarize_data --report
 ```
 
+The output of this command is:
+
+<p align="center">  
+  <img width="600" src="https://github.com/slrbl/unsupervised-learning-attack-detection-webhawk-catch/blob/master/IMAGES/clusters_1.png">
+</p>
+
+<p align="center">  
+  <img width="600" src="https://github.com/slrbl/unsupervised-learning-attack-detection-webhawk-catch/blob/master/IMAGES/clusters_2.png">
+</p>
+
+<p align="center">  
+  <img width="600" src="https://github.com/slrbl/unsupervised-learning-attack-detection-webhawk-catch/blob/master/IMAGES/screenshot_1.png">
+</p>
+
+
+
 ## Used sample data
 
 The data you will find in SAMPLE_DATA folder comes from<br>

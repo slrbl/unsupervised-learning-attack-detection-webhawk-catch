@@ -1,7 +1,7 @@
 
 # Webhawk Catch 2.0
 
-Machine Learning based web attacks detection.
+Unsupervised Machine Learning web attacks detection.
 
 
 <p align="center">  

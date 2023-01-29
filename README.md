@@ -100,9 +100,6 @@ https://www.secrepo.com.
 https://www.kaggle.com/datasets/eliasdabbas/web-server-access-logs
 https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/3QBYB5
 
-## Documentation
-
-TODO
 
 ## TODO
 Nothing for now.

@@ -29,10 +29,14 @@ pip install -r requirements.txt
 Copy settings_template.conf file to settings.conf and fill it with the required parameters as the following.
 
 ```shell
-[MODEL]
-model:MODELS/the_model_you_will_train.pkl
 [FEATURES]
-features:length,params_number,return_code,size,upper_cases,lower_cases,special_chars,url_depth
+features:length,params_number,return_code,size,upper_cases,lower_cases,special_chars,url_depth,user_agent,http_query,ip
+
+[LOG]
+apache:([(\d\.)]+) - - \[(.*?)\] "(.*?)" (\d+) (.+) "(.*?)" "(.*?)"
+nginx:([(\d\.)]+) - - \[(.*?)\] "(.*?)" (\d+) (\d+) (.+) "(.*?)" "(.*?)"
+apache_error:
+nginx_error:
 ```
 
 ## Unsupervised detection Usage

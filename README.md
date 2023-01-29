@@ -1,5 +1,5 @@
 
-# 🦅 Webhawk Catch 2.0
+# Webhawk Catch 2.0
 
 Machine Learning based web attacks detection.
 

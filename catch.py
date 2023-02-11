@@ -31,6 +31,7 @@ parser.add_argument('-o', '--standarize_data', help='Smooth feature values',  ac
 parser.add_argument('-r', '--report', help='Create a HTML report', action='store_true')
 parser.add_argument('-z', '--opt_silouhette', help='Optimize DBSCAN silouhette', action='store_true')
 parser.add_argument('-y', '--opt_lamda', help = 'Optimization lambda step', required = False)
+parser.add_argument('-m', '--minority_threshold', help = 'Minority clusters threshold', required = False)
 
 
 
@@ -180,6 +181,15 @@ def optimize_silouhette_coefficient(max_curve, dataframe, lambda_value):
         current_eps += lambda_value
     return best_silouhette, best_eps_for_silouhette
 
+# This function return the clusters that include a number of point <= threshold
+def get_minority_clusters(elements_by_cluster,threshold):
+    threshold += elements_by_cluster[-1]
+    minority_clusters = []
+    for key in elements_by_cluster:
+        if (key!=-1 and elements_by_cluster[key]<=threshold):
+            minority_clusters.append(key)
+    return minority_clusters
+
 
 def main():
 
@@ -193,6 +203,7 @@ def main():
 
     LOG_LINES_LIMIT = int(args['log_lines_limit']) if args['log_lines_limit'] is not None else 1000000
     LAMBDA = float(args['opt_lamda']) if args['opt_lamda'] is not None else 0.01
+    THRESHOLD = int(args['minority_threshold']) if args['minority_threshold'] else 5
     FEATURES = [
         'params_number',
         #'size', # Stopped using size because it make a lot of false positive detections
@@ -296,10 +307,8 @@ def main():
     elements_by_cluster = find_elements_by_cluster(labels)
     number_of_clusters = len(elements_by_cluster.values())
 
-    # Get top N minority clusters
-    N = int(number_of_clusters/3)
-
-    minority_clusters = list(elements_by_cluster.keys())[:N]
+    # Get top minority clusters
+    minority_clusters = get_minority_clusters(elements_by_cluster,THRESHOLD)
 
     # Outliers are considred as high severity findings
 
@@ -335,7 +344,10 @@ def main():
     logging.info('{} log lines detected as containing potential malicious behaviour traces'.format(list(labels).count(-1)))
     logging.info('Number of log lines by cluster:{}'.format(find_elements_by_cluster(labels)))
     logging.info('\nTotal number of log lines:{}'.format(len(data)))
-    logging.info('The top {} minority clusters are:{}'.format(N,minority_clusters))
+    if len(minority_clusters)>0:
+        logging.info('The minority clusters are:{}'.format(minority_clusters))
+    else:
+        logging.info('No minority clusters found.')
 
     if args['show_plots']:
         plot_findings(dataframe,labels)

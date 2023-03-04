@@ -11,7 +11,13 @@ Unsupervised Machine Learning web attacks detection.
 
 ## About
 
-Webhawk is an open source machine learning powered Web attack detection tool. It uses your web logs as training data. Webhawk offers a REST API that makes it easy to integrate within your SoC ecosystem. To train a detection model and use it as an extra security level in your organization, follow the following steps.
+Webhawk Catch is the unseperived version of Webhawk. Catch finds web attacks in HTTP logs. It uses unsupervised learning to group the log lines by clusters and find the potentially anomalous ones. Catch takes as input raw HTTP log files (Apache, Nginx..) and returns a list of possible attack traces.
+
+Catch uses PCA (Principal Component Analysis) technique to select the most important features (Eg: user-agent, ip address, number of parameters, etc.. ). It then uses DBSCAN algorithm to get all the possible clusters and anomalous points.  
+
+The most advanced users can tune Catch even further based on a set of options that help optimizing the clustering algorithm.
+
+The current version of Webhawk generates an easy-to-read HTML report that includes the severity of each detection and the concerned log line.
 
 ## Setup
 

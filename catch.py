@@ -134,7 +134,7 @@ def plot_findings(dataframe, labels):
             markerfacecolor=tuple(color),
             markeredgecolor=markeredgecolor,
             markersize=markersize,)
-    plt.title('Webhawk/Catch - {} Possible attacks detected'.format(outliers_count))
+    plt.title('Webhawk/Catch - {} Possible attack traces detected'.format(outliers_count))
     plt.show()
 
 # This function find the maximum curvature point among the sorted neighbors distance plot
@@ -221,7 +221,7 @@ def main():
 
 
     print('\n')
-    print((termcolor.colored(pyfiglet.figlet_format('Webhawk / Catch 2.0',font = 'banner3', width=600), color='red')))
+    print((termcolor.colored(pyfiglet.figlet_format('Webhawk / Catch 2.0',font = 'banner3', width=600), color='yellow')))
 
 
     logging.info('\n> Webhawk Catch 2.0')

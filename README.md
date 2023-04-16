@@ -11,13 +11,15 @@ Unsupervised Machine Learning web attacks detection.
 
 ## About
 
-Webhawk Catch is the unseperived version of Webhawk. Catch finds web attacks in HTTP logs. It uses unsupervised learning to group the log lines by clusters and find the potentially anomalous ones. Catch takes as input raw HTTP log files (Apache, Nginx..) and returns a list of possible attack traces.
+Webhawk/Catch helps automatically finding web attack traces in HTTP logs without using any preset rules. Based on the usage of Unsupervised Machine Learning, Catch groups log lines into clusters, and detects the outliers that it considers as potentially attack traces. The tool takes as input a raw HTTP log file (Apache, Nginx..) and returns a report with a list of findings. 
 
-Catch uses PCA (Principal Component Analysis) technique to select the most important features (Eg: user-agent, ip address, number of parameters, etc.. ). It then uses DBSCAN algorithm to get all the possible clusters and anomalous points.  
+Catch uses PCA (Principal Component Analysis) technique to select the most relevant features (Example: user-agent, IP address, number of transmitted parameters, etc.. ). Then, it runs DBSCAN (Density-Based Spatial Clustering of Applications with Noise) algorithm to get all the possible log line clusters and anomalous points (potential attack traces).  
 
-The most advanced users can tune Catch even further based on a set of options that help optimizing the clustering algorithm.
+Advanced users can fine tune Catch based on a set of options that help optimising the clustering algorithm (Example: minimum number of points by cluster, or the maximum distance between two points within the same cluster).
 
-The current version of Webhawk generates an easy-to-read HTML report that includes the severity of each detection and the concerned log line.
+The current version of Webhawk/Catch generates an easy-to-read HTML report which includes all the findings, and the severity of each one.
+
+Webhawk/Catch is an open-source tool. Catch is the unsupervised version of Webhawk which is a supervised machine learning based cyber-attack detection tool. In contrary to the supervised Webhawk, Catch can be used without manually pertaining a model, the thing that makes it a lightweight and flexible solution to easily identify potential attack traces.  Catch is available as an independent repository in Github, it is also included as part of Webhawk which is starred 125 times and forked 68 times.
 
 ## Setup
 

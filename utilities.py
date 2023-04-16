@@ -8,6 +8,63 @@ import sys
 import time
 import pandas as pd
 
+def get_process_col_locations(header_line, list_col_names):
+    col_locations = {}
+    for idx, col_name in enumerate(list_col_names):
+        col_width = len(col_name)
+        col_locations[col_name] = {}
+        
+        if idx == 0:
+            col_locations[col_name]['start_idx'] = 0
+        else:
+            col_locations[col_name]['start_idx'] = col_locations[list_col_names[idx-1]]['end_idx']
+            
+        if idx+1 < len(list_col_names):
+            re_pattern = r"(?<={})(.*?)(?={})".format(col_name, list_col_names[idx+1])
+        else:
+            re_pattern = r"(?<={})(.*?)".format(col_name)
+        whitespaces = re.findall(re_pattern, header_line)
+        col_width += len(whitespaces[0])
+        col_locations[col_name]['end_idx'] = col_locations[col_name]['start_idx']+col_width
+    return col_locations
+
+def parse_process_file(process_file):
+    with open(process_file) as f:
+        processes_lines = f.readlines()
+
+    summary_line_pattern = r'^\D*:'
+    is_header_line = False
+    is_header_line_seen = False
+    process_data = []
+    
+    for line in processes_lines:
+        process_dict = {}
+
+        is_summary_line = re.match(summary_line_pattern, line)
+        if is_summary_line:
+            is_header_line_seen = False
+            
+        is_header_line = True if 'PID' in line and '%CPU' in line else False
+        if is_header_line:
+            header_line = line.strip()
+            list_col_names = header_line.split()
+            col_locations = get_process_col_locations(header_line, list_col_names)
+            is_header_line = False
+            is_header_line_seen = True
+            continue
+        
+        if is_header_line_seen:
+            for col_name in col_locations:
+                col_start_idx = col_locations[col_name]['start_idx']
+                col_end_idx = col_locations[col_name]['end_idx']
+                process_value = line[col_start_idx:col_end_idx].strip()
+                try:
+                    process_dict[col_name] = float(process_value)
+                except:
+                    process_dict[col_name] = process_value
+                    
+            process_data.append(process_dict)
+    return process_data
 
 def encode_single_line(single_line,features):
     return ",".join((str(single_line[feature]) for feature in features))

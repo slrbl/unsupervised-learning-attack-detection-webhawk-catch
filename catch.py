@@ -57,20 +57,28 @@ def plot_informative(x, y, z):
 
 # This function returns takes as input a log_file and returns a dataframe
 def get_data(log_file, log_type, log_size_limit, FEATURES):
-    try:
-        encoded_logs = encode_log_file(log_file, log_type)
-    except:
-        logging.info('Something went wrong encoding data.')
-        sys.exit(1)
-    try:
-        _,data_str = construct_enconded_data_file(encoded_logs, False)
-    except:
-        logging.info('Something went wrong constructing data')
-        sys.exit(1)
-    # Get the raw log lines
-    csvStringIO = io.StringIO(data_str)
-    data = pd.read_csv(csvStringIO, sep=',').head(log_size_limit)
-    data = data[FEATURES]
+    if log_type == 'os_processes':
+        data = parse_process_file(log_file)
+        data = pd.DataFrame.from_records(data)
+        data = data.drop_duplicates(subset=['PID'], keep='last')
+        numerical_cols = list(data._get_numeric_data().columns)
+        data = data[numerical_cols]
+        data = data.drop(['PID', 'PGRP', 'PPID', 'UID'], axis=1)
+    else:
+        try:
+            encoded_logs = encode_log_file(log_file, log_type)
+        except:
+            logging.info('Something went wrong encoding data.')
+            sys.exit(1)
+        try:
+            _,data_str = construct_enconded_data_file(encoded_logs, False)
+        except:
+            logging.info('Something went wrong constructing data')
+            sys.exit(1)
+        # Get the raw log lines
+        csvStringIO = io.StringIO(data_str)
+        data = pd.read_csv(csvStringIO, sep=',').head(log_size_limit)
+        data = data[FEATURES]
     return data
 
 # This function returnt the number of elements by cluster (including the outliers 'cluster')
@@ -82,7 +90,7 @@ def find_elements_by_cluster(labels):
     return elements_by_cluster
 
 # This function return a list a findings
-def catch(labels, data, label):
+def catch(labels, data, label, log_type):
     log_line_number = 0
     if label == -1:
         severity = 'high'
@@ -92,11 +100,18 @@ def catch(labels, data, label):
     for point_label in labels:
         # Adding the anomalous points to the findings
         if point_label == label:
-            finding = {
-                'log_line_number':log_line_number,
-                'log_line':data['log_line'][log_line_number],
-                'severity':severity
-            }
+            if not log_type == 'os_processes':
+                finding = {
+                    'log_line_number':log_line_number,
+                    'log_line':data['log_line'][log_line_number],
+                    'severity':severity
+                }
+            else:
+                finding = {
+                    'log_line_number':log_line_number,
+                    'log_line':data.iloc[[log_line_number]],
+                    'severity':severity
+                }
             findings.append(finding)
         log_line_number += 1
     return findings
@@ -241,7 +256,10 @@ def main():
         FEATURES)
 
     # convert to a dataframe
-    dataframe = data.to_numpy()[:,list(range(0,len(FEATURES)-1))]
+    if args['log_type'] != 'os_processes':
+        dataframe = data.to_numpy()[:,list(range(0,len(FEATURES)-1))]
+    else:
+        dataframe = data
 
     # Standarize data
     if args['standarize_data']:
@@ -250,11 +268,18 @@ def main():
     # Show informative data plots
     if args['show_plots']:
         logging.info('\n> Informative plotting started')
-        logging.info('{}Plotting http_query, url_depth and return_code'.format(' '*4))
-        plot_informative(
-            data['http_query'],
-            data['url_depth'],
-            data['return_code'])
+        if args['log_type'] != 'os_processes':
+            logging.info('{}Plotting http_query, url_depth and return_code'.format(' '*4))
+            plot_informative(
+                data['http_query'],
+                data['url_depth'],
+                data['return_code'])
+        else:
+            logging.info('{}Plotting %CPU, POWER and CYCLES'.format(' '*4))
+            plot_informative(
+                data['%CPU'],
+                data['POWER'],
+                data['CYCLES'])
 
     # Dimensiality reduction to 2d using PCA
     pca = sklearn.decomposition.PCA(n_components=2)
@@ -312,7 +337,7 @@ def main():
 
     # Outliers are considred as high severity findings
 
-    high_findings = catch(labels,data,-1)
+    high_findings = catch(labels,data,-1, args['log_type'])
     if len(high_findings)>0:
         logging.info ('\n\n\n\n    '+100*'/'+'   HIGH Severity findings   '+100*'\\')
         print_findings(high_findings)
@@ -321,7 +346,7 @@ def main():
     medium_findings=[]
     for label in minority_clusters:
         if label != -1:
-            medium_findings += catch(labels,data,label)
+            medium_findings += catch(labels,data,label, args['log_type'])
 
     if len(medium_findings) > 0:
         logging.info ('\n\n\n\n    '+100*'/'+'   MEDIUM Severity findings   '+100*'\\')

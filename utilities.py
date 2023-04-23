@@ -4,8 +4,10 @@
 
 import configparser
 import re
+import ast
 import sys
 import time
+import psutil
 import pandas as pd
 
 def get_process_col_locations(header_line, list_col_names):
@@ -206,43 +208,88 @@ def gen_report(findings,log_file,log_type):
             </style>
         </head>
     """
-    report_str+="""
-        <div>
-            <h1>Webhawk Catch Report</h1>
-            <p>
-                Unsupervised learning Web logs attack detection.
-            </p>
-            Date: {}
-            <br>
-            Log file: {}
-            <br>
-            Log type: {} logs
-            <br>
-            <h3>Findings: {}</h3>
-        <table>
-            <tr style="background:whitesmoke;padding:10px">
-                <td>Severity</td>
-                <td>Line#</td>
-                <td>Log line</td>
-            </tr>
-    """.format(gmt_time,log_file,log_type,len(findings))
+
+    if not log_type == 'os_processes':
+        report_str+="""
+            <div>
+                <h1>Webhawk Catch Report</h1>
+                <p>
+                    Unsupervised learning Web logs/OS processes attack detection.
+                </p>
+                Date: {}
+                <br>
+                Log file: {}
+                <br>
+                Log type: {} logs
+                <br>
+                <h3>Findings: {}</h3>
+            <table>
+                <tr style="background:whitesmoke;padding:10px">
+                    <td>Severity</td>
+                    <td>{}</td>
+                    <td>Log line</td>
+                </tr>
+        """.format(gmt_time,log_file,log_type,len(findings), 'Line#')
+    else:
+        report_str+="""
+            <div>
+                <h1>Webhawk Catch Report</h1>
+                <p>
+                    Unsupervised learning Web logs/OS processes attack detection.
+                </p>
+                Date: {}
+                <br>
+                Log file: {}
+                <br>
+                Log type: {} logs
+                <br>
+                <h3>Findings: {}</h3>
+            <table>
+                <tr style="background:whitesmoke;padding:10px">
+                    <td>Severity</td>
+                    <td>{}</td>
+                    <td>Log line</td>
+                    <td>Process details</td>
+                </tr>
+        """.format(gmt_time,log_file,log_type,len(findings), 'PID')
+
     for finding in findings:
         severity=finding['severity']
         if severity == 'medium':
             background='orange'
         if severity == 'high':
             background='OrangeRed'
-        report_str+="""
-            <tr>
-                <td style="background:{};text-align:center;color:whitesmoke">{}</td>
-                <td>{}</td>
-                <td>{}</td>
-            </tr>
-        """.format(background,severity.capitalize(),finding['log_line_number']+1,finding['log_line'])
+        
+        if not log_type == 'os_processes':
+            report_str+="""
+                <tr>
+                    <td style="background:{};text-align:center;color:whitesmoke">{}</td>
+                    <td>{}</td>
+                    <td>{}</td>
+                </tr>
+            """.format(background,severity.capitalize(),finding['log_line_number']+1,finding['log_line'])
+        else:
+            report_str+="""
+                <tr>
+                    <td style="background:{};text-align:center;color:whitesmoke">{}</td>
+                    <td>{}</td>
+                    <td>{}</td>
+                    <td>{}</td>
+                </tr>
+            """.format(background,severity.capitalize(),finding['pid'],finding['log_line'], finding['process_details'])
+
     report_str+="</table></div>"
     with open('./SCANS/scan_result_{}.html'.format(log_file.split('/')[-1]),'w') as result_file:
         result_file.write(report_str)
 
+def get_process_details(pid):
+    process_details_attributes = ast.literal_eval(config['PROCESS_DETAILS']['attributes'])
+    try:
+        process = psutil.Process(pid)
+        return process.as_dict(attrs=process_details_attributes)
+    except Exception as e:
+        print(f'Cannot get process details about PID: {pid} becasue {e}')
+        return {}
 
 config = configparser.ConfigParser()
 config.sections()

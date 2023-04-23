@@ -61,9 +61,10 @@ def get_data(log_file, log_type, log_size_limit, FEATURES):
         data = parse_process_file(log_file)
         data = pd.DataFrame.from_records(data)
         data = data.drop_duplicates(subset=['PID'], keep='last')
+        data = data.set_index('PID')
         numerical_cols = list(data._get_numeric_data().columns)
         data = data[numerical_cols]
-        data = data.drop(['PID', 'PGRP', 'PPID', 'UID'], axis=1)
+        data = data.drop(['PGRP', 'PPID', 'UID'], axis=1)
     else:
         try:
             encoded_logs = encode_log_file(log_file, log_type)
@@ -107,21 +108,27 @@ def catch(labels, data, label, log_type):
                     'severity':severity
                 }
             else:
+                pid = int(data.iloc[[log_line_number]].index.values[0])
                 finding_line = data.iloc[[log_line_number]].values[0]
                 column_names = data.columns.to_list()
+                process_details = get_process_details(pid)
                 finding = {
-                    'log_line_number':log_line_number,
+                    'pid': pid,
                     'log_line':list(zip(column_names, finding_line)),
-                    'severity':severity
+                    'severity':severity,
+                    'process_details': process_details
                 }
             findings.append(finding)
         log_line_number += 1
     return findings
 
 # This function prints the finding to the terminal
-def print_findings(findings):
+def print_findings(findings, log_type):
     for finding in findings:
-        logging.info('\n\t/!\ Webhawk {} - Possible anomalous behaviour detected at line:{}'.format(finding['severity'], finding['log_line_number']))
+        if not log_type == 'os_processes':
+            logging.info('\n\t/!\ Webhawk {} - Possible anomalous behaviour detected at line:{}'.format(finding['severity'], finding['log_line_number']))
+        else:
+            logging.info('\n\t/!\ Webhawk {} - Possible anomalous behaviour detected at line:{}'.format(finding['severity'], finding['pid']))
         logging.info('\t{}'.format(finding['log_line']))
 
 # This function plots the finding
@@ -343,7 +350,7 @@ def main():
     high_findings = catch(labels,data,-1, args['log_type'])
     if len(high_findings)>0:
         logging.info ('\n\n\n\n    '+100*'/'+'   HIGH Severity findings   '+100*'\\')
-        print_findings(high_findings)
+        print_findings(high_findings, args['log_type'])
 
     # Points belonging to minority clusters are considred as medium severity findings
     medium_findings=[]
@@ -353,7 +360,7 @@ def main():
 
     if len(medium_findings) > 0:
         logging.info ('\n\n\n\n    '+100*'/'+'   MEDIUM Severity findings   '+100*'\\')
-        print_findings(medium_findings)
+        print_findings(medium_findings, args['log_type'])
 
     all_findings = high_findings + medium_findings
 

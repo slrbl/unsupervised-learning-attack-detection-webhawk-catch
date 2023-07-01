@@ -43,7 +43,7 @@ def plot_informative(x, y, z):
         x,
         y,
         'ko')
-    plt.title('A informative visualisation of 2 selected  features')
+    plt.title('An informative visualisation of 2 selected  features')
     plt.show()
 
 
@@ -57,20 +57,29 @@ def plot_informative(x, y, z):
 
 # This function returns takes as input a log_file and returns a dataframe
 def get_data(log_file, log_type, log_size_limit, FEATURES):
-    try:
-        encoded_logs = encode_log_file(log_file, log_type)
-    except:
-        logging.info('Something went wrong encoding data.')
-        sys.exit(1)
-    try:
-        _,data_str = construct_enconded_data_file(encoded_logs, False)
-    except:
-        logging.info('Something went wrong constructing data')
-        sys.exit(1)
-    # Get the raw log lines
-    csvStringIO = io.StringIO(data_str)
-    data = pd.read_csv(csvStringIO, sep=',').head(log_size_limit)
-    data = data[FEATURES]
+    if log_type == 'os_processes':
+        data = parse_process_file(log_file)
+        data = pd.DataFrame.from_records(data)
+        data = data.drop_duplicates(subset=['PID'], keep='last')
+        data = data.set_index('PID')
+        numerical_cols = list(data._get_numeric_data().columns)
+        data = data[numerical_cols]
+        data = data.drop(['PGRP', 'PPID', 'UID'], axis=1)
+    else:
+        try:
+            encoded_logs = encode_log_file(log_file, log_type)
+        except:
+            logging.info('Something went wrong encoding data.')
+            sys.exit(1)
+        try:
+            _,data_str = construct_enconded_data_file(encoded_logs, False)
+        except:
+            logging.info('Something went wrong constructing data')
+            sys.exit(1)
+        # Get the raw log lines
+        csvStringIO = io.StringIO(data_str)
+        data = pd.read_csv(csvStringIO, sep=',').head(log_size_limit)
+        data = data[FEATURES]
     return data
 
 # This function returnt the number of elements by cluster (including the outliers 'cluster')
@@ -82,7 +91,7 @@ def find_elements_by_cluster(labels):
     return elements_by_cluster
 
 # This function return a list a findings
-def catch(labels, data, label):
+def catch(labels, data, label, log_type):
     log_line_number = 0
     if label == -1:
         severity = 'high'
@@ -92,19 +101,34 @@ def catch(labels, data, label):
     for point_label in labels:
         # Adding the anomalous points to the findings
         if point_label == label:
-            finding = {
-                'log_line_number':log_line_number,
-                'log_line':data['log_line'][log_line_number],
-                'severity':severity
-            }
+            if not log_type == 'os_processes':
+                finding = {
+                    'log_line_number':log_line_number,
+                    'log_line':data['log_line'][log_line_number],
+                    'severity':severity
+                }
+            else:
+                pid = int(data.iloc[[log_line_number]].index.values[0])
+                finding_line = data.iloc[[log_line_number]].values[0]
+                column_names = data.columns.to_list()
+                process_details = get_process_details(pid)
+                finding = {
+                    'pid': pid,
+                    'log_line':list(zip(column_names, finding_line)),
+                    'severity':severity,
+                    'process_details': process_details
+                }
             findings.append(finding)
         log_line_number += 1
     return findings
 
 # This function prints the finding to the terminal
-def print_findings(findings):
+def print_findings(findings, log_type):
     for finding in findings:
-        logging.info('\n\t/!\ Webhawk {} - Possible anomalous behaviour detected at line:{}'.format(finding['severity'], finding['log_line_number']))
+        if not log_type == 'os_processes':
+            logging.info('\n\t/!\ Webhawk {} - Possible anomalous behaviour detected at line:{}'.format(finding['severity'], finding['log_line_number']))
+        else:
+            logging.info('\n\t/!\ Webhawk {} - Possible anomalous behaviour detected at line:{}'.format(finding['severity'], finding['pid']))
         logging.info('\t{}'.format(finding['log_line']))
 
 # This function plots the finding
@@ -123,7 +147,6 @@ def plot_findings(dataframe, labels):
             outliers_count+=1
         # Plot other (minority cluster points)
         else:
-            color = plt.cm.Spectral(np.linspace(label, 1, 1))[0]
             marker = 'o'
             markersize = 6
             markeredgecolor = 'black'
@@ -131,7 +154,7 @@ def plot_findings(dataframe, labels):
             row['pc_1'],
             row['pc_2'],
             marker,
-            markerfacecolor=tuple(color),
+            markerfacecolor=tuple(plt.cm.Spectral(np.linspace(label, 1, 1))[0]),
             markeredgecolor=markeredgecolor,
             markersize=markersize,)
     plt.title('Webhawk/Catch - {} Possible attack traces detected'.format(outliers_count))
@@ -144,7 +167,9 @@ def find_max_curvature_point(dataframe, plot):
     nbrs = neighbors.fit(dataframe)
     distances, indices = nbrs.kneighbors(dataframe)
     # Sorting the nearest neighbors distance
-    distances = np.sort(distances, axis=0)
+    sorted_idx = distances[:, 1].argsort()
+    distances = distances[sorted_idx]
+    indices = indices[sorted_idx]
     # Finding the maximum curvature point
     kl = kneed.KneeLocator(distances[:,1], indices[:,1], curve="convex")
     # Make plot if required
@@ -241,7 +266,10 @@ def main():
         FEATURES)
 
     # convert to a dataframe
-    dataframe = data.to_numpy()[:,list(range(0,len(FEATURES)-1))]
+    if args['log_type'] != 'os_processes':
+        dataframe = data.to_numpy()[:,list(range(0,len(FEATURES)-1))]
+    else:
+        dataframe = data
 
     # Standarize data
     if args['standarize_data']:
@@ -250,11 +278,18 @@ def main():
     # Show informative data plots
     if args['show_plots']:
         logging.info('\n> Informative plotting started')
-        logging.info('{}Plotting http_query, url_depth and return_code'.format(' '*4))
-        plot_informative(
-            data['http_query'],
-            data['url_depth'],
-            data['return_code'])
+        if args['log_type'] != 'os_processes':
+            logging.info('{}Plotting http_query, url_depth and return_code'.format(' '*4))
+            plot_informative(
+                data['http_query'],
+                data['url_depth'],
+                data['return_code'])
+        else:
+            logging.info('{}Plotting %CPU, POWER and CYCLES'.format(' '*4))
+            plot_informative(
+                data['%CPU'],
+                data['POWER'],
+                data['CYCLES'])
 
     # Dimensiality reduction to 2d using PCA
     pca = sklearn.decomposition.PCA(n_components=2)
@@ -312,20 +347,20 @@ def main():
 
     # Outliers are considred as high severity findings
 
-    high_findings = catch(labels,data,-1)
+    high_findings = catch(labels,data,-1, args['log_type'])
     if len(high_findings)>0:
         logging.info ('\n\n\n\n    '+100*'/'+'   HIGH Severity findings   '+100*'\\')
-        print_findings(high_findings)
+        print_findings(high_findings, args['log_type'])
 
     # Points belonging to minority clusters are considred as medium severity findings
     medium_findings=[]
     for label in minority_clusters:
         if label != -1:
-            medium_findings += catch(labels,data,label)
+            medium_findings += catch(labels,data,label, args['log_type'])
 
     if len(medium_findings) > 0:
         logging.info ('\n\n\n\n    '+100*'/'+'   MEDIUM Severity findings   '+100*'\\')
-        print_findings(medium_findings)
+        print_findings(medium_findings, args['log_type'])
 
     all_findings = high_findings + medium_findings
 

@@ -15,12 +15,12 @@ def get_process_col_locations(header_line, list_col_names):
     for idx, col_name in enumerate(list_col_names):
         col_width = len(col_name)
         col_locations[col_name] = {}
-        
+
         if idx == 0:
             col_locations[col_name]['start_idx'] = 0
         else:
             col_locations[col_name]['start_idx'] = col_locations[list_col_names[idx-1]]['end_idx']
-            
+
         if idx+1 < len(list_col_names):
             re_pattern = r"(?<={})(.*?)(?={})".format(col_name, list_col_names[idx+1])
         else:
@@ -38,14 +38,14 @@ def parse_process_file(process_file):
     is_header_line = False
     is_header_line_seen = False
     process_data = []
-    
+
     for line in processes_lines:
         process_dict = {}
 
         is_summary_line = re.match(summary_line_pattern, line)
         if is_summary_line:
             is_header_line_seen = False
-            
+
         is_header_line = True if 'PID' in line and '%CPU' in line else False
         if is_header_line:
             header_line = line.strip()
@@ -54,7 +54,7 @@ def parse_process_file(process_file):
             is_header_line = False
             is_header_line_seen = True
             continue
-        
+
         if is_header_line_seen:
             for col_name in col_locations:
                 col_start_idx = col_locations[col_name]['start_idx']
@@ -64,7 +64,7 @@ def parse_process_file(process_file):
                     process_dict[col_name] = float(process_value)
                 except:
                     process_dict[col_name] = process_value
-                    
+
             process_data.append(process_dict)
     return process_data
 
@@ -73,7 +73,8 @@ def encode_single_line(single_line,features):
 
 
 # Encode a single log line/Extract features
-def encode_log_line(log_line,log_type,indices):
+def encode_log_line(log_line,log_type,indices,categorical_fractions,encoding_type):
+    #print(indices)
     # log_type is apache for the moment
     try:
         log_format = config['LOG'][log_type]
@@ -116,21 +117,30 @@ def encode_log_line(log_line,log_type,indices):
         log_line_data['lower_cases'] = lower_cases
         log_line_data['special_chars'] = special_chars
         log_line_data['url_depth'] = float(url_depth)
-        log_line_data['ip'] = indices['ips'].index(ip)+1
-        log_line_data['http_query'] = 100*(indices['http_queries'].index(http_query)+1)
-        log_line_data['user_agent'] = indices['user_agents'].index(user_agent)+1
+
+        if encoding_type == 'label_encoding':
+            log_line_data['ip'] = indices['ips'].index(ip)+1
+            log_line_data['http_query'] = 100*(indices['http_queries'].index(http_query)+1)
+            log_line_data['user_agent'] = indices['user_agents'].index(user_agent)+1
+
+        if encoding_type == 'fraction_encoding':
+            log_line_data['http_query']=categorical_fractions['http_queries'][http_query]
+            log_line_data['user_agent']=categorical_fractions['user_agents'][user_agent]
+            log_line_data['ip']=categorical_fractions['ips'][ip]
+
     else:
         log_line_data = None
     return url, log_line_data
 
 # Encode all the data in http log file (access_log)
-def encode_log_file(log_file,log_type):
+def encode_log_file(log_file,log_type,encoding_type):
     data = {}
     indices = get_categorical_indices(log_file,log_type)
+    categorical_fractions = get_categorical_fractions(log_file,log_type)
     log_file = open(log_file, 'r')
     for log_line in log_file:
         log_line=log_line.replace(',','#').replace(';','#')
-        _,log_line_data = encode_log_line(log_line,log_type,indices)
+        _,log_line_data = encode_log_line(log_line,log_type,indices,categorical_fractions,encoding_type)
         if log_line_data is not None:
             #data[url] = log_line_data
             data[log_line] = log_line_data
@@ -170,6 +180,50 @@ def get_categorical_indices(log_file,log_type):
             incides['ips'].append(ip)
 
     return incides
+
+
+def get_categorical_fractions(log_file,log_type):
+    fractions = {
+        'http_queries':{},
+        'user_agents':{},
+        'ips':{},
+    }
+    log_file = open(log_file, 'r')
+    data_count=0
+    for log_line in log_file:
+        log_line=log_line.replace(',','#').replace(';','#')
+        try:
+            log_format = config['LOG'][log_type]
+        except:
+            print('Log type \'{}\' not defined. \nMake sure "settings.conf" file exits and the log concerned type is defined.\nExiting'.format(log_type))
+            sys.exit(1)
+        try:
+            log_line = re.match(log_format,log_line).groups()
+        except:
+            print('Log type \'{}\' doesn\'t fit your log fomat.\nExiting'.format(log_type))
+            sys.exit(1)
+        data_count+=1
+        http_query=log_line[2].split(' ')[0]
+        if http_query not in fractions['http_queries']:
+            fractions['http_queries'][http_query] = 1
+        else:
+            fractions['http_queries'][http_query] +=1
+
+        user_agent=log_line[6]
+        if user_agent not in fractions['user_agents']:
+            fractions['user_agents'][user_agent] = 1
+        else:
+            fractions['user_agents'][user_agent] += 1
+
+        ip=log_line[0]
+        if user_agent not in fractions['ips']:
+            fractions['ips'][ip] = 1
+        else:
+            fractions['ips'][ip] += 1
+    for fraction in fractions:
+        for categorical_fraction in fractions[fraction]:
+            fractions[fraction][categorical_fraction] = fractions[fraction][categorical_fraction]/(data_count*1.)
+    return fractions
 
 def construct_enconded_data_file(data,set_simulation_label):
 	labelled_data_str = f"{config['FEATURES']['features']},label,log_line\n"
@@ -259,7 +313,7 @@ def gen_report(findings,log_file,log_type):
             background='orange'
         if severity == 'high':
             background='OrangeRed'
-        
+
         if not log_type == 'os_processes':
             report_str+="""
                 <tr>

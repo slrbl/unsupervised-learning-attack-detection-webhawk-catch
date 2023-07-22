@@ -73,7 +73,7 @@ options:
   -j LOG_LINES_LIMIT, --log_lines_limit LOG_LINES_LIMIT
                         The maximum number of log lines of consider
   -p, --show_plots      Show informative plots
-  -o, --standarize_data
+  -o, --standardize_data
                         Smooth feature values
   -r, --report          Create a HTML report
   -z, --opt_silouhette  Optimize DBSCAN silouhette
@@ -89,7 +89,7 @@ Encoding is automatic for the unsupervised mode. You just need to run the catch.
 Get inspired from this example:
 
 ```shell
-python catch.py -l ../HTTP_LOGS_DTATSETS/SECREPO_LOGS/access.log.2021-10-22 --log_type apache --show_plots --standarize_data --report
+python catch.py -l ../HTTP_LOGS_DTATSETS/SECREPO_LOGS/access.log.2021-10-22 --log_type apache --show_plots --standardize_data --report
 ```
 
 The output of this command is:
@@ -114,7 +114,7 @@ top > PATH/os_processes.txt
 
 You can then run the catch.py to detect potential abnormal OS processes:
 ```shell
-python catch.py -l PATH/os_processes.txt --log_type os_processes --show_plots --standarize_data --report
+python catch.py -l PATH/os_processes.txt --log_type os_processes --show_plots --standardize_data --report
 ```
 
 ## Used sample data

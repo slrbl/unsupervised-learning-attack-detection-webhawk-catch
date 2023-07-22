@@ -20,23 +20,25 @@ from utilities import *
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-b', '--debug', help = 'Activate debug logging', action='store_true')
+
 parser.add_argument('-l', '--log_file', help = 'The raw http log file', required = True)
 parser.add_argument('-t', '--log_type', help = 'apache or nginx', required = True)
 parser.add_argument('-e', '--eps', help='DBSCAN Epsilon value (Max distance between two points)', required=False)
 parser.add_argument('-s', '--min_samples', help='Minimum number of points with the same cluster. The default value is 2', required=False)
 parser.add_argument('-j', '--log_lines_limit', help='The maximum number of log lines of consider', required=False)
-parser.add_argument('-p', '--show_plots', help='Show informative plots',  action='store_true')
-parser.add_argument('-o', '--standarize_data', help='Smooth feature values',  action='store_true')
-parser.add_argument('-r', '--report', help='Create a HTML report', action='store_true')
-parser.add_argument('-z', '--opt_silouhette', help='Optimize DBSCAN silouhette', action='store_true')
 parser.add_argument('-y', '--opt_lamda', help = 'Optimization lambda step', required = False)
 parser.add_argument('-m', '--minority_threshold', help = 'Minority clusters threshold', required = False)
-
+parser.add_argument('-p', '--show_plots', help='Show informative plots',  action='store_true')
+parser.add_argument('-o', '--standardize_data', help='Standardize feature values',  action='store_true')
+parser.add_argument('-r', '--report', help='Create a HTML report', action='store_true')
+parser.add_argument('-z', '--opt_silouhette', help='Optimize DBSCAN silouhette', action='store_true')
+parser.add_argument('-b', '--debug', help = 'Activate debug logging', action='store_true')
+parser.add_argument('-c', '--label_encoding', help = 'Use label encoding instead of frequeny encoding to encode categorical features', action='store_true')
 
 
 # This function makes two informative plots
 def plot_informative(x, y, z):
+
     # 2D informational plot
     logging.info('{}Plotting an informative 2 dimensional visualisation'.format(' '*4))
     plt.plot(
@@ -55,8 +57,9 @@ def plot_informative(x, y, z):
     plt.title('An informative visualisation of 3 selected  features')
     plt.show()
 
+
 # This function returns takes as input a log_file and returns a dataframe
-def get_data(log_file, log_type, log_size_limit, FEATURES):
+def get_data(log_file, log_type, log_size_limit, FEATURES,encoding_type):
     if log_type == 'os_processes':
         data = parse_process_file(log_file)
         data = pd.DataFrame.from_records(data)
@@ -67,7 +70,7 @@ def get_data(log_file, log_type, log_size_limit, FEATURES):
         data = data.drop(['PGRP', 'PPID', 'UID'], axis=1)
     else:
         try:
-            encoded_logs = encode_log_file(log_file, log_type)
+            encoded_logs = encode_log_file(log_file, log_type,encoding_type)
         except:
             logging.info('Something went wrong encoding data.')
             sys.exit(1)
@@ -171,7 +174,7 @@ def find_max_curvature_point(dataframe, plot):
     distances = distances[sorted_idx]
     indices = indices[sorted_idx]
     # Finding the maximum curvature point
-    kl = kneed.KneeLocator(distances[:,1], indices[:,1], curve="convex")
+    kl = kneed.KneeLocator(distances[:,1], indices[:,1], curve="convex",S=10.0)
     # Make plot if required
     if plot:
         plt.title('Sorted distance to nearest neighbors and max curvature')
@@ -208,12 +211,14 @@ def optimize_silouhette_coefficient(max_curve, dataframe, lambda_value):
 
 # This function return the clusters that include a number of point <= threshold
 def get_minority_clusters(elements_by_cluster,threshold):
-    threshold += elements_by_cluster[-1]
     minority_clusters = []
-    for key in elements_by_cluster:
-        if (key!=-1 and elements_by_cluster[key]<=threshold):
-            minority_clusters.append(key)
+    if -1 in elements_by_cluster:
+        threshold += elements_by_cluster[-1]
+        for key in elements_by_cluster:
+            if (key!=-1 and elements_by_cluster[key]<=threshold):
+                minority_clusters.append(key)
     return minority_clusters
+
 
 
 def main():
@@ -229,6 +234,9 @@ def main():
     LOG_LINES_LIMIT = int(args['log_lines_limit']) if args['log_lines_limit'] is not None else 1000000
     LAMBDA = float(args['opt_lamda']) if args['opt_lamda'] is not None else 0.01
     THRESHOLD = int(args['minority_threshold']) if args['minority_threshold'] else 5
+
+    encoding_type = 'label_encoding' if args['label_encoding'] == True else 'fraction_encoding'
+
     FEATURES = [
         'params_number',
         #'size', # Stopped using size because it make a lot of false positive detections
@@ -253,7 +261,7 @@ def main():
     logging.info('{}The input log file is {}'.format(' '*4,args['log_type']))
     logging.info('{}Log format is set to {}'.format(' '*4,args['log_type']))
     logging.info('{}Demo plotting is set to {}'.format(' '*4,args['show_plots']))
-    logging.info('{}Features standarization is set to {}'.format(' '*4,args['standarize_data']))
+    logging.info('{}Features standarization is set to {}'.format(' '*4,args['standardize_data']))
 
     # Get data
     logging.info('\n> Data reading started')
@@ -263,7 +271,10 @@ def main():
         args['log_file'],
         args['log_type'],
         LOG_LINES_LIMIT,
-        FEATURES)
+        FEATURES,
+        encoding_type)
+
+    print(data)
 
     # convert to a dataframe
     if args['log_type'] != 'os_processes':
@@ -272,7 +283,7 @@ def main():
         dataframe = data
 
     # Standarize data
-    if args['standarize_data']:
+    if args['standardize_data']:
         dataframe = sklearn.preprocessing.StandardScaler().fit_transform(dataframe)
 
     # Show informative data plots
@@ -298,12 +309,18 @@ def main():
         data = principal_components_df,
         columns = ['pc_1', 'pc_2'])
 
+    print(dataframe)
+    plot_informative(dataframe['pc_1'],dataframe['pc_2'],dataframe['pc_2'])
+
+
     # Getting or setting epsilon
     if args['eps'] == None:
         logging.info('\n> No Epsilon input. Finding the max sorted neighbors curvature point and use it as Epsilon')
         automatic_max_curve_point = find_max_curvature_point(dataframe, args['show_plots'])
         selected_eps = automatic_max_curve_point
         logging.info('{}{}'.format(4*' ',automatic_max_curve_point))
+    else:
+        selected_eps=float(args['eps'])
 
     if args['opt_silouhette']:
         logging.info('\n> Optimizing Epsilon to get the best BDSCAN Silhouette Coefficient')
@@ -384,8 +401,8 @@ def main():
     else:
         logging.info('No minority clusters found.')
 
-    if args['show_plots']:
-        plot_findings(dataframe,labels)
+    #if args['show_plots']:
+    plot_findings(dataframe,labels)
 
 if __name__ == '__main__':
     main()

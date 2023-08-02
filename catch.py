@@ -75,9 +75,7 @@ parser.add_argument(
 # This function makes two informative plots
 def plot_informative(x, y, z):
     # 2D informational plot
-    logging.info(
-        "{}Plotting an informative 2 dimensional visualisation".format(" " * 4)
-    )
+    logging.info("%sPlotting an informative 2 dimensional visualisation", " " * 4)
     plt.plot(x, y, "ko")
     plt.title("An informative visualisation of 2 selected  features")
     plt.show()
@@ -85,9 +83,7 @@ def plot_informative(x, y, z):
     # 3D informational plot
     fig = plt.figure(figsize=(10, 7))
     ax = plt.axes(projection="3d")
-    logging.info(
-        "{}Plotting an informative 3 dimensional visualisation".format(" " * 4)
-    )
+    logging.info("%sPlotting an informative 3 dimensional visualisation", " " * 4)
     ax.scatter3D(x, y, z, color="black")
     plt.title("An informative visualisation of 3 selected  features")
     plt.show()
@@ -170,17 +166,17 @@ def print_findings(findings, log_type):
     for finding in findings:
         if not log_type == "os_processes":
             logging.info(
-                "\n\t/!\\ Webhawk {} - Possible anomalous behaviour detected at line:{}".format(
-                    finding["severity"], finding["log_line_number"]
-                )
+                "\n\t/!\\ Webhawk %r - Possible anomalous behaviour detected at line:%r",
+                finding["severity"],
+                finding["log_line_number"],
             )
         else:
             logging.info(
-                "\n\t/!\\ Webhawk {} - Possible anomalous behaviour detected at line:{}".format(
-                    finding["severity"], finding["pid"]
-                )
+                "\n\t/!\\ Webhawk %r - Possible anomalous behaviour detected at line:%r",
+                finding["severity"],
+                finding["pid"],
             )
-        logging.info("\t{}".format(finding["log_line"]))
+        logging.info("\t%r", finding["log_line"])
 
 
 # This function plots the finding
@@ -251,8 +247,8 @@ def optimize_silouhette_coefficient(max_curve, dataframe, lambda_value):
         if current_silouhette > best_silouhette:
             best_silouhette = current_silouhette
             best_eps_for_silouhette = current_eps
-        logging.debug("\nCurvature:{}".format(current_eps))
-        logging.debug("Silhouette:{}".format(current_silouhette))
+        logging.debug("\nCurvature:%r", current_eps)
+        logging.debug("Silhouette:%r", current_silouhette)
         current_eps += lambda_value
     return best_silouhette, best_eps_for_silouhette
 
@@ -313,13 +309,11 @@ def main():
     )
 
     logging.info("\n> Webhawk Catch 2.0")
-    logging.info("{}The input log file is {}".format(" " * 4, args["log_type"]))
-    logging.info("{}Log format is set to {}".format(" " * 4, args["log_type"]))
-    logging.info("{}Demo plotting is set to {}".format(" " * 4, args["show_plots"]))
+    logging.info("%sThe input log file is %r", " " * 4, args["log_type"])
+    logging.info("%sLog format is set to %r", " " * 4, args["log_type"])
+    logging.info("%sDemo plotting is set to %r", " " * 4, args["show_plots"])
     logging.info(
-        "{}Features standardization is set to {}".format(
-            " " * 4, args["standardize_data"]
-        )
+        "%sFeatures standardization is set to %r", " " * 4, args["standardize_data"]
     )
 
     # Get data
@@ -345,12 +339,10 @@ def main():
     if args["show_plots"]:
         logging.info("\n> Informative plotting started")
         if args["log_type"] != "os_processes":
-            logging.info(
-                "{}Plotting http_query, url_depth and return_code".format(" " * 4)
-            )
+            logging.info("%sPlotting http_query, url_depth and return_code", " " * 4)
             plot_informative(data["http_query"], data["url_depth"], data["return_code"])
         else:
-            logging.info("{}Plotting %CPU, POWER and CYCLES".format(" " * 4))
+            logging.info("%sPlotting %%CPU, POWER and CYCLES", " " * 4)
             plot_informative(data["%CPU"], data["POWER"], data["CYCLES"])
 
     # Dimensionality reduction to 2d using PCA
@@ -371,7 +363,7 @@ def main():
             dataframe, args["show_plots"]
         )
         selected_eps = automatic_max_curve_point
-        logging.info("{}{}".format(4 * " ", automatic_max_curve_point))
+        logging.info("%s%r", 4 * " ", automatic_max_curve_point)
     else:
         selected_eps = float(args["eps"])
 
@@ -382,13 +374,11 @@ def main():
         best_silouhette, best_eps_for_silouhette = optimize_silouhette_coefficient(
             selected_eps, dataframe, LAMBDA
         )
-        logging.info("{}{}".format(4 * " ", best_eps_for_silouhette))
+        logging.info("%s%r", 4 * " ", best_eps_for_silouhette)
         selected_eps = best_eps_for_silouhette
 
     logging.info(
-        "{}The value {} will be used as final DBSCAN Epsilon".format(
-            4 * " ", selected_eps
-        )
+        "%sThe value %r will be used as final DBSCAN Epsilon", 4 * " ", selected_eps
     )
 
     logging.info("\n> Starting detection..")
@@ -411,18 +401,16 @@ def main():
     # Check the number of labels (if 1 then try without EPS value)
     if len(set(dbscan_model.labels_)) == 1:
         logging.info(
-            "{}Only one cluster was found using the value {} as epsilon".format(
-                4 * " ", selected_eps
-            )
+            "%sOnly one cluster was found using the value %r as epsilon",
+            4 * " ",
+            selected_eps,
         )
-        logging.info("{}Trying without epsilon".format(4 * " "))
+        logging.info("%sTrying without epsilon", 4 * " ")
         dbscan = sklearn.cluster.DBSCAN()
         dbscan_model = dbscan.fit(dataframe)
     if len(set(dbscan_model.labels_)) == 1:
         logging.info(
-            "{}Only one cluster was found without an epsilon value. Exiting.".format(
-                4 * " "
-            )
+            "%sOnly one cluster was found without an epsilon value. Exiting.", 4 * " "
         )
         sys.exit(0)
 
@@ -465,23 +453,20 @@ def main():
     # Number of clusters in labels, ignoring noise if present.
     n_noise = list(labels).count(-1)
 
-    logging.info("\nEstimated number of clusters: %d" % len(set(labels)))
-    logging.info("Estimated number of outliers/anomalous points: %d" % n_noise)
+    logging.info("\nEstimated number of clusters: %d", len(set(labels)))
+    logging.info("Estimated number of outliers/anomalous points: %d", n_noise)
     logging.info(
-        "DBSCAN Silhouette Coefficient: %0.3f"
-        % sklearn.metrics.silhouette_score(dataframe, labels)
+        "DBSCAN Silhouette Coefficient: %0.3f",
+        sklearn.metrics.silhouette_score(dataframe, labels),
     )
     logging.info(
-        "{} log lines detected as containing potential malicious behaviour traces".format(
-            list(labels).count(-1)
-        )
+        "%d log lines detected as containing potential malicious behaviour traces",
+        list(labels).count(-1),
     )
-    logging.info(
-        "Number of log lines by cluster:{}".format(find_elements_by_cluster(labels))
-    )
-    logging.info("\nTotal number of log lines:{}".format(len(data)))
+    logging.info("Number of log lines by cluster:%r", find_elements_by_cluster(labels))
+    logging.info("\nTotal number of log lines:%d", len(data))
     if len(minority_clusters) > 0:
-        logging.info("The minority clusters are:{}".format(minority_clusters))
+        logging.info("The minority clusters are:%r", minority_clusters)
     else:
         logging.info("No minority clusters found.")
 

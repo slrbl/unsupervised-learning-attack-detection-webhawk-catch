@@ -118,7 +118,7 @@ You can then run the catch.py to detect potentially abnormal OS processes:
 python catch.py -l PATH/os_processes.txt --log_type os_processes --show_plots --standardize_data --report
 ```
 
-## Used sample data
+## Using sample data
 
 The data located in the **SAMPLE_DATA** folder comes from
 <https://www.secrepo.com>.

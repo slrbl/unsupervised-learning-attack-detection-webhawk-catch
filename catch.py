@@ -1,12 +1,14 @@
+# Webhawk/Catch 2.0
 # About: Use unsupervised learning to detect intrusion/suspicious activities in http logs
 # Author: walid.daboubi@gmail.com
+# Reviewed: 2023/08/06 - Flight Zurich/Las Vegas
+
 
 import io
 import kneed
 import argparse
 import pyfiglet
 import termcolor
-import matplotlib
 import numpy as np
 import pandas as pd
 import sklearn.cluster
@@ -14,48 +16,8 @@ import sklearn.neighbors
 import sklearn.preprocessing
 import sklearn.decomposition
 import matplotlib.pyplot as plt
-import logging
 
 from utilities import *
-
-
-parser = argparse.ArgumentParser()
-
-parser.add_argument('-l', '--log_file', help = 'The raw http log file', required = True)
-parser.add_argument('-t', '--log_type', help = 'apache or nginx', required = True)
-parser.add_argument('-e', '--eps', help='DBSCAN Epsilon value (Max distance between two points)', required=False)
-parser.add_argument('-s', '--min_samples', help='Minimum number of points with the same cluster. The default value is 2', required=False)
-parser.add_argument('-j', '--log_lines_limit', help='The maximum number of log lines of consider', required=False)
-parser.add_argument('-y', '--opt_lamda', help = 'Optimization lambda step', required = False)
-parser.add_argument('-m', '--minority_threshold', help = 'Minority clusters threshold', required = False)
-parser.add_argument('-p', '--show_plots', help='Show informative plots',  action='store_true')
-parser.add_argument('-o', '--standardize_data', help='Standardize feature values',  action='store_true')
-parser.add_argument('-r', '--report', help='Create a HTML report', action='store_true')
-parser.add_argument('-z', '--opt_silouhette', help='Optimize DBSCAN silouhette', action='store_true')
-parser.add_argument('-b', '--debug', help = 'Activate debug logging', action='store_true')
-parser.add_argument('-c', '--label_encoding', help = 'Use label encoding instead of frequeny encoding to encode categorical features', action='store_true')
-
-
-# This function makes two informative plots
-def plot_informative(x, y, z):
-
-    # 2D informational plot
-    logging.info('{}Plotting an informative 2 dimensional visualisation'.format(' '*4))
-    plt.plot(
-        x,
-        y,
-        'ko')
-    plt.title('An informative visualisation of 2 selected  features')
-    plt.show()
-
-
-    # 3D informational plot
-    fig = plt.figure(figsize=(10, 7))
-    ax = plt.axes(projection='3d')
-    logging.info('{}Plotting an informative 3 dimensional visualisation'.format(' '*4))
-    ax.scatter3D(x, y, z, color='black')
-    plt.title('An informative visualisation of 3 selected  features')
-    plt.show()
 
 
 # This function returns takes as input a log_file and returns a dataframe
@@ -85,6 +47,28 @@ def get_data(log_file, log_type, log_size_limit, FEATURES,encoding_type):
         data = data[FEATURES]
     return data
 
+
+# This function makes two informative plots
+def plot_data(data,title):
+    if len(data) == 2:
+        # 2D informational plot
+        logging.info('{} Plotting an informative 2 dimensional visualisation'.format(' '*4))
+        fig = plt.figure(figsize=(10, 7))
+        plt.plot(
+            data[0],
+            data[1],
+            'ko')
+        plt.title(title)
+    if len(data) == 3:
+        # 3D informational plot
+        fig = plt.figure(figsize=(10, 7))
+        ax = plt.axes(projection='3d')
+        logging.info('{}Plotting an informative 3 dimensional visualisation'.format(' '*4))
+        ax.scatter3D(data[0], data[1], data[2], color='black')
+        plt.title(title)
+    plt.show()
+
+
 # This function returnt the number of elements by cluster (including the outliers 'cluster')
 def find_elements_by_cluster(labels):
     elements_by_cluster={}
@@ -92,6 +76,7 @@ def find_elements_by_cluster(labels):
         elements_by_cluster[label]=np.count_nonzero(labels == label)
     elements_by_cluster={k: v for k, v in sorted(elements_by_cluster.items(), key=lambda item: item[1])}
     return elements_by_cluster
+
 
 # This function return a list a findings
 def catch(labels, data, label, log_type):
@@ -125,6 +110,7 @@ def catch(labels, data, label, log_type):
         log_line_number += 1
     return findings
 
+
 # This function prints the finding to the terminal
 def print_findings(findings, log_type):
     for finding in findings:
@@ -134,12 +120,14 @@ def print_findings(findings, log_type):
             logging.info('\n\t/!\ Webhawk {} - Possible anomalous behaviour detected at line:{}'.format(finding['severity'], finding['pid']))
         logging.info('\t{}'.format(finding['log_line']))
 
+
 # This function plots the finding
-def plot_findings(dataframe, labels):
+def plot_findings(dataframe, labels,save_at):
     # Plot finddings
     unique_labels = set(labels)
     colors = [plt.cm.Spectral(each) for each in np.linspace(1, 0, len(unique_labels))]
     outliers_count = 0
+    fig = plt.figure(figsize=(10, 7))
     for index, row in dataframe.iterrows():
         label = labels[index]
         # Plot outliers
@@ -161,7 +149,10 @@ def plot_findings(dataframe, labels):
             markeredgecolor=markeredgecolor,
             markersize=markersize,)
     plt.title('Webhawk/Catch - {} Possible attack traces detected'.format(outliers_count))
+    if save_at != None:
+        plt.savefig(save_at)
     plt.show()
+
 
 # This function find the maximum curvature point among the sorted neighbors distance plot
 def find_max_curvature_point(dataframe, plot):
@@ -190,6 +181,7 @@ def find_max_curvature_point(dataframe, plot):
         plt.show()
     return kl.knee
 
+
 # This function optimize Epsilon to get the best BDSCAN silouhette Coefficient
 def optimize_silouhette_coefficient(max_curve, dataframe, lambda_value):
     current_eps = lambda_value
@@ -209,6 +201,7 @@ def optimize_silouhette_coefficient(max_curve, dataframe, lambda_value):
         current_eps += lambda_value
     return best_silouhette, best_eps_for_silouhette
 
+
 # This function return the clusters that include a number of point <= threshold
 def get_minority_clusters(elements_by_cluster,threshold):
     minority_clusters = []
@@ -222,6 +215,21 @@ def get_minority_clusters(elements_by_cluster,threshold):
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-l', '--log_file', help = 'The raw http log file', required = True)
+    parser.add_argument('-t', '--log_type', help = 'apache or nginx', required = True)
+    parser.add_argument('-e', '--eps', help='DBSCAN Epsilon value (Max distance between two points)', required=False)
+    parser.add_argument('-s', '--min_samples', help='Minimum number of points with the same cluster. The default value is 2', required=False)
+    parser.add_argument('-j', '--log_lines_limit', help='The maximum number of log lines of consider', required=False)
+    parser.add_argument('-y', '--opt_lamda', help = 'Optimization lambda step', required = False)
+    parser.add_argument('-m', '--minority_threshold', help = 'Minority clusters threshold', required = False)
+    parser.add_argument('-p', '--show_plots', help='Show informative plots',  action='store_true')
+    parser.add_argument('-o', '--standardize_data', help='Standardize feature values',  action='store_true')
+    parser.add_argument('-r', '--report', help='Create a HTML report', action='store_true')
+    parser.add_argument('-z', '--opt_silouhette', help='Optimize DBSCAN silouhette', action='store_true')
+    parser.add_argument('-b', '--debug', help = 'Activate debug logging', action='store_true')
+    parser.add_argument('-c', '--label_encoding', help = 'Use label encoding instead of frequeny encoding to encode categorical features', action='store_true')
+
 
     # Get parameters
     args = vars(parser.parse_args())
@@ -239,7 +247,7 @@ def main():
 
     FEATURES = [
         'params_number',
-        #'size', # Stopped using size because it make a lot of false positive detections
+        #'size', # Stopped using size because it makes a lot of false positive detections
         'length',
         'upper_cases',
         'lower_cases',
@@ -290,17 +298,12 @@ def main():
     if args['show_plots']:
         logging.info('\n> Informative plotting started')
         if args['log_type'] != 'os_processes':
-            logging.info('{}Plotting http_query, url_depth and return_code'.format(' '*4))
-            plot_informative(
-                data['http_query'],
-                data['url_depth'],
-                data['return_code'])
+            plot_data([data['http_query'],data['url_depth']],'Informative plot of http_query and url_depth')
+            plot_data([data['http_query'],data['url_depth'],data['return_code']],'Informative plot of http_query, url_depth and return_code')
         else:
-            logging.info('{}Plotting %CPU, POWER and CYCLES'.format(' '*4))
-            plot_informative(
-                data['%CPU'],
-                data['POWER'],
-                data['CYCLES'])
+            plot_data([data['%CPU'],data['POWER']],'Plotting %CPU and POWER')
+            plot_data([data['%CPU'],data['POWER'],data['CYCLES']],'Plotting %CPU, POWER and CYCLES')
+
 
     # Dimensiality reduction to 2d using PCA
     pca = sklearn.decomposition.PCA(n_components=2)
@@ -309,8 +312,9 @@ def main():
         data = principal_components_df,
         columns = ['pc_1', 'pc_2'])
 
+    # Display and plot data after applying PCA
     print(dataframe)
-    plot_informative(dataframe['pc_1'],dataframe['pc_2'],dataframe['pc_2'])
+    plot_data([dataframe['pc_1'],dataframe['pc_2']],'Data after dimensiality reduction using PCA')
 
 
     # Getting or setting epsilon
@@ -381,11 +385,7 @@ def main():
 
     all_findings = high_findings + medium_findings
 
-    # Generate a HTML report is required
-    if args['report']:
-        gen_report(
-            all_findings,args['log_file'],
-            args['log_type'])
+
 
     # Number of clusters in labels, ignoring noise if present.
     n_noise = list(labels).count(-1)
@@ -401,8 +401,19 @@ def main():
     else:
         logging.info('No minority clusters found.')
 
-    #if args['show_plots']:
-    plot_findings(dataframe,labels)
+    #where to save the plot
+    save_plot_at ='./SCANS/scan_plot_{}'.format(args['log_file'].split('/')[-1].replace('.','_'))
+
+    # plot findings and save the plot if save_plot_at is defined
+    plot_findings(dataframe,labels,save_plot_at)
+
+    # Generate a HTML report if requested
+    if args['report']:
+        gen_report(
+            all_findings,args['log_file'],
+            args['log_type'],
+            )
+
 
 if __name__ == '__main__':
     main()

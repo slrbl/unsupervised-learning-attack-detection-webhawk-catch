@@ -8,7 +8,7 @@ import ast
 import sys
 import time
 import psutil
-import pandas as pd
+import logging
 
 def get_process_col_locations(header_line, list_col_names):
     col_locations = {}
@@ -135,10 +135,15 @@ def encode_log_line(log_line,log_type,indices,categorical_fractions,encoding_typ
 # Encode all the data in http log file (access_log)
 def encode_log_file(log_file,log_type,encoding_type):
     data = {}
-    indices = get_categorical_indices(log_file,log_type)
-    categorical_fractions = get_categorical_fractions(log_file,log_type)
-    log_file = open(log_file, 'r')
-    for log_line in log_file:
+    try:
+        log_file_content = open(log_file, 'r')
+    except:
+        logging.info('Something went wrong reading the input file.')
+        sys.exit(1)
+    log_file_content=list(log_file_content)
+    indices = get_categorical_indices(log_file_content,log_type)
+    categorical_fractions = get_categorical_fractions(log_file_content,log_type)
+    for log_line in log_file_content:
         log_line=log_line.replace(',','#').replace(';','#')
         _,log_line_data = encode_log_line(log_line,log_type,indices,categorical_fractions,encoding_type)
         if log_line_data is not None:
@@ -147,14 +152,13 @@ def encode_log_file(log_file,log_type,encoding_type):
     return data
 
 
-def get_categorical_indices(log_file,log_type):
+def get_categorical_indices(log_file_content,log_type):
     incides = {
         'http_queries':[],
         'user_agents':[],
         'ips':[]
     }
-    log_file = open(log_file, 'r')
-    for log_line in log_file:
+    for log_line in log_file_content:
         log_line=log_line.replace(',','#').replace(';','#')
         try:
             log_format = config['LOG'][log_type]
@@ -182,15 +186,14 @@ def get_categorical_indices(log_file,log_type):
     return incides
 
 
-def get_categorical_fractions(log_file,log_type):
+def get_categorical_fractions(log_file_content,log_type):
     fractions = {
         'http_queries':{},
         'user_agents':{},
         'ips':{},
     }
-    log_file = open(log_file, 'r')
     data_count=0
-    for log_line in log_file:
+    for log_line in log_file_content:
         log_line=log_line.replace(',','#').replace(';','#')
         try:
             log_format = config['LOG'][log_type]
@@ -243,6 +246,7 @@ def construct_enconded_data_file(data,set_simulation_label):
 
 
 def gen_report(findings,log_file,log_type):
+    report_file_path='./SCANS/scan_result_{}.html'.format(log_file.split('/')[-1].replace('.','_'))
     gmt_time=time.strftime("%d/%m/%y at %H:%M:%S GMT", time.gmtime())
     report_str="""
         <head>
@@ -266,6 +270,9 @@ def gen_report(findings,log_file,log_type):
     if not log_type == 'os_processes':
         report_str+="""
             <div>
+                <table>
+                <tr>
+                <td>
                 <h1>Webhawk Catch Report</h1>
                 <p>
                     Unsupervised learning Web logs/OS processes attack detection.
@@ -277,13 +284,19 @@ def gen_report(findings,log_file,log_type):
                 Log type: {} logs
                 <br>
                 <h3>Findings: {}</h3>
+                </td>
+                <td>
+                <img src='{}'/>
+                </td>
+                </tr>
+                </table>
             <table>
                 <tr style="background:whitesmoke;padding:10px">
                     <td>Severity</td>
                     <td>{}</td>
                     <td>Log line</td>
                 </tr>
-        """.format(gmt_time,log_file,log_type,len(findings), 'Line#')
+        """.format(gmt_time,log_file,log_type,len(findings),report_file_path.replace('result','plot').replace('html','png').replace('./SCANS','.'),'Line#')
     else:
         report_str+="""
             <div>
@@ -333,7 +346,8 @@ def gen_report(findings,log_file,log_type):
             """.format(background,severity.capitalize(),finding['pid'],finding['log_line'], finding['process_details'])
 
     report_str+="</table></div>"
-    with open('./SCANS/scan_result_{}.html'.format(log_file.split('/')[-1]),'w') as result_file:
+
+    with open(report_file_path,'w') as result_file:
         result_file.write(report_str)
 
 def get_process_details(pid):

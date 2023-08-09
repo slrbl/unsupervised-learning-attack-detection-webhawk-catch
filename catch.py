@@ -451,7 +451,6 @@ def main():
         logging.info('> Finding CVEs started')
         all_findings = find_cves(all_findings)
     # Generate a HTML report if requested
-    print(all_findings)
     if args['report']:
         #find_cves(all_findings)
         gen_report(

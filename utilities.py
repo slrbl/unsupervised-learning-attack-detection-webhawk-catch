@@ -276,7 +276,7 @@ def gen_report(findings,log_file,log_type):
             <div>
                 <table width="100%">
                     <tr>
-                        <td width="35%">
+                        <td width="50%">
                             <h1>Webhawk Catch Report</h1>
                             <p>
                                 Unsupervised learning Web logs/OS processes attack detection.
@@ -297,9 +297,9 @@ def gen_report(findings,log_file,log_type):
             <table width="100%">
                 <tr style="background:gainsboro;padding:10px">
                     <td style="width:5%">Severity</td>
-                    <td style="width:10%">Related CVE(s)</td>
-                    <td style="width:5%">{}</td>
-                    <td style="width:80%">Log line</td>
+                    <td style="width:8%">Related CVE(s)</td>
+                    <td style="width:4%">{}</td>
+                    <td style="width:83%">Log line</td>
                 </tr>
 
         """.format(gmt_time,log_file,log_type,len(findings),report_file_path.replace('result','plot').replace('html','png').replace('./SCANS','.'),'Line#')
@@ -332,8 +332,11 @@ def gen_report(findings,log_file,log_type):
 
         cves=''
         if 'cve' in finding and finding['cve']!='':
-            for cve in finding['cve'].split(' '):
-                cves += "<a href='https://nvd.nist.gov/vuln/detail/{}'>{}</a><br>".format(cve,cve)
+            cve_list = finding['cve'].split(' ')
+            if len(cve_list)>0:
+                cve_list.reverse()
+                for cve in cve_list:
+                    cves += "<a href='https://nvd.nist.gov/vuln/detail/{}'>{}</a><br>".format(cve,cve)
         else:
             cves='<i>No CVE found</i>'
 

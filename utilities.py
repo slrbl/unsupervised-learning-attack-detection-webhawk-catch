@@ -251,6 +251,10 @@ def gen_report(findings,log_file,log_type):
     report_str="""
         <head>
             <style>
+                table {
+                    table-layout: fixed;
+                    width: 100%;
+                }
                 td {
                   padding: 5px;
                 }
@@ -270,32 +274,34 @@ def gen_report(findings,log_file,log_type):
     if not log_type == 'os_processes':
         report_str+="""
             <div>
-                <table>
-                <tr>
-                <td>
-                <h1>Webhawk Catch Report</h1>
-                <p>
-                    Unsupervised learning Web logs/OS processes attack detection.
-                </p>
-                Date: {}
-                <br>
-                Log file: {}
-                <br>
-                Log type: {} logs
-                <br>
-                <h3>Findings: {}</h3>
-                </td>
-                <td>
-                <img src='{}'/>
-                </td>
+                <table width="100%">
+                    <tr>
+                        <td width="35%">
+                            <h1>Webhawk Catch Report</h1>
+                            <p>
+                                Unsupervised learning Web logs/OS processes attack detection.
+                            </p>
+                            Date: {}
+                            <br>
+                            Log file: {}
+                            <br>
+                            Log type: {} logs
+                            <br>
+                            <h3>Findings: {}</h3>
+                        </td>
+                        <td>
+                            <img src='{}'/>
+                        </td>
                 </tr>
                 </table>
-            <table>
-                <tr style="background:whitesmoke;padding:10px">
-                    <td>Severity</td>
-                    <td>{}</td>
-                    <td>Log line</td>
+            <table width="100%">
+                <tr style="background:gainsboro;padding:10px">
+                    <td style="width:5%">Severity</td>
+                    <td style="width:10%">Related CVE(s)</td>
+                    <td style="width:5%">{}</td>
+                    <td style="width:80%">Log line</td>
                 </tr>
+
         """.format(gmt_time,log_file,log_type,len(findings),report_file_path.replace('result','plot').replace('html','png').replace('./SCANS','.'),'Line#')
     else:
         report_str+="""
@@ -322,6 +328,15 @@ def gen_report(findings,log_file,log_type):
 
     for finding in findings:
         severity=finding['severity']
+        #cve = finding['cve'] if 'cve' in finding else 'Not found'
+
+        cves=''
+        if 'cve' in finding and finding['cve']!='':
+            for cve in finding['cve'].split(' '):
+                cves += "<a href='https://nvd.nist.gov/vuln/detail/{}'>{}</a><br>".format(cve,cve)
+        else:
+            cves='<i>No CVE found</i>'
+
         if severity == 'medium':
             background='orange'
         if severity == 'high':
@@ -333,8 +348,9 @@ def gen_report(findings,log_file,log_type):
                     <td style="background:{};text-align:center;color:whitesmoke">{}</td>
                     <td>{}</td>
                     <td>{}</td>
+                    <td>{}</td>
                 </tr>
-            """.format(background,severity.capitalize(),finding['log_line_number']+1,finding['log_line'])
+            """.format(background,severity.capitalize(),cves,finding['log_line_number']+1,finding['log_line'])
         else:
             report_str+="""
                 <tr>

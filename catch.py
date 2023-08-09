@@ -16,9 +16,10 @@ import sklearn.neighbors
 import sklearn.preprocessing
 import sklearn.decomposition
 import matplotlib.pyplot as plt
+import urllib3
+import requests
 
 from utilities import *
-
 
 # This function returns takes as input a log_file and returns a dataframe
 def get_data(log_file, log_type, log_size_limit, FEATURES,encoding_type):
@@ -214,6 +215,44 @@ def get_minority_clusters(elements_by_cluster,threshold):
 
 
 
+def find_cves(findings):
+    bad_chars = ['/','?','=','&','%','#']
+    enriched_findings = []
+    checked_candidate_strings = {}
+    for finding in findings:
+        # Only find CVE for the high severity findings
+        if finding['severity'] == 'high':
+            finding['cve'] = ''
+            final_requested_url = finding['log_line'].split('"')[1].split(' ')[1]
+            # Replace 'bad' chars by spaces
+            for bad_char in bad_chars:
+                final_requested_url=final_requested_url.replace(bad_char,' ')
+            for candidate_string in final_requested_url.split(' '):
+                if len(candidate_string) >= 10:
+                    try:
+                        if candidate_string not in checked_candidate_strings:
+                            checked_candidate_strings[candidate_string] = ''
+                            response = requests.get('https://services.nvd.nist.gov/rest/json/cves/2.0?keywordSearch={}'.format(candidate_string),verify=False)
+
+                            max_cve_by_candidate_string = 10
+                            if response.status_code == 200 and 'vulnerabilities' in response.json():
+                                for vuln in response.json()['vulnerabilities']:
+                                    logging.info('{} found'.format(vuln['cve']['id']))
+                                    max_cve_by_candidate_string -= 1
+                                    if max_cve_by_candidate_string == 0:
+                                        break
+                                    finding['cve'] += vuln['cve']['id']+' '
+                                    checked_candidate_strings[candidate_string]+=vuln['cve']['id']+' '
+                                # Sleep to ne be blocked by services.nvd.nist.gov
+                                time.sleep(5)
+                        else:
+                            finding['cve'] += checked_candidate_strings[candidate_string] + ' '
+                    except:
+                        logging.info('Something wrong getting CVE(s)')
+        enriched_findings.append(finding)
+    return enriched_findings
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-l', '--log_file', help = 'The raw http log file', required = True)
@@ -229,7 +268,8 @@ def main():
     parser.add_argument('-z', '--opt_silouhette', help='Optimize DBSCAN silouhette', action='store_true')
     parser.add_argument('-b', '--debug', help = 'Activate debug logging', action='store_true')
     parser.add_argument('-c', '--label_encoding', help = 'Use label encoding instead of frequeny encoding to encode categorical features', action='store_true')
-
+    parser.add_argument('-v', '--find_cves', help = 'Find the CVE(s) that are related to the attack traces', action='store_true')
+    urllib3.disable_warnings()
 
     # Get parameters
     args = vars(parser.parse_args())
@@ -407,8 +447,13 @@ def main():
     # plot findings and save the plot if save_plot_at is defined
     plot_findings(dataframe,labels,save_plot_at)
 
+    if args['find_cves'] == True:
+        logging.info('> Finding CVEs started')
+        all_findings = find_cves(all_findings)
     # Generate a HTML report if requested
+    print(all_findings)
     if args['report']:
+        #find_cves(all_findings)
         gen_report(
             all_findings,args['log_file'],
             args['log_type'],

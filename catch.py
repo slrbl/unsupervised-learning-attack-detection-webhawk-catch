@@ -54,7 +54,7 @@ def plot_data(data,title):
     if len(data) == 2:
         # 2D informational plot
         logging.info('{} Plotting an informative 2 dimensional visualisation'.format(' '*4))
-        fig = plt.figure(figsize=(10, 7))
+        fig = plt.figure()
         plt.plot(
             data[0],
             data[1],
@@ -62,7 +62,7 @@ def plot_data(data,title):
         plt.title(title)
     if len(data) == 3:
         # 3D informational plot
-        fig = plt.figure(figsize=(10, 7))
+        fig = plt.figure()
         ax = plt.axes(projection='3d')
         logging.info('{}Plotting an informative 3 dimensional visualisation'.format(' '*4))
         ax.scatter3D(data[0], data[1], data[2], color='black')
@@ -128,7 +128,7 @@ def plot_findings(dataframe, labels,save_at):
     unique_labels = set(labels)
     colors = [plt.cm.Spectral(each) for each in np.linspace(1, 0, len(unique_labels))]
     outliers_count = 0
-    fig = plt.figure(figsize=(10, 7))
+    fig = plt.figure()
     for index, row in dataframe.iterrows():
         label = labels[index]
         # Plot outliers

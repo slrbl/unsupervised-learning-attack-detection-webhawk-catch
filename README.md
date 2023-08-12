@@ -57,13 +57,12 @@ attributes:['status', 'num_ctx_switches', 'memory_full_info', 'connections', 'cm
 
 ```shell
 python catch.py -h
-usage: catch.py [-h] [-b] -l LOG_FILE -t LOG_TYPE [-e EPS] [-s MIN_SAMPLES] [-j LOG_LINES_LIMIT] [-p] [-o] [-r] [-z] [-y OPT_LAMDA]
+usage: catch.py [-h] -l LOG_FILE -t LOG_TYPE [-e EPS] [-s MIN_SAMPLES] [-j LOG_LINES_LIMIT] [-y OPT_LAMDA] [-m MINORITY_THRESHOLD] [-p] [-o] [-r] [-z] [-b] [-c] [-v]
 
 options:
   -h, --help            show this help message and exit
-  -b, --debug           Activate debug logging
   -l LOG_FILE, --log_file LOG_FILE
-                        The input log file
+                        The raw http log file
   -t LOG_TYPE, --log_type LOG_TYPE
                         apache or nginx
   -e EPS, --eps EPS     DBSCAN Epsilon value (Max distance between two points)
@@ -71,13 +70,18 @@ options:
                         Minimum number of points with the same cluster. The default value is 2
   -j LOG_LINES_LIMIT, --log_lines_limit LOG_LINES_LIMIT
                         The maximum number of log lines of consider
-  -p, --show_plots      Show informative plots
-  -o, --standardize_data
-                        Smooth feature values
-  -r, --report          Create a HTML report
-  -z, --opt_silouhette  Optimize DBSCAN silouhette
   -y OPT_LAMDA, --opt_lamda OPT_LAMDA
                         Optimization lambda step
+  -m MINORITY_THRESHOLD, --minority_threshold MINORITY_THRESHOLD
+                        Minority clusters threshold
+  -p, --show_plots      Show informative plots
+  -o, --standardize_data
+                        Standardize feature values
+  -r, --report          Create a HTML report
+  -z, --opt_silouhette  Optimize DBSCAN silouhette
+  -b, --debug           Activate debug logging
+  -c, --label_encoding  Use label encoding instead of frequeny encoding to encode categorical features
+  -v, --find_cves       Find the CVE(s) that are related to the attack traces
 
 ```
 

@@ -1,5 +1,8 @@
+# Webhawk/Catch 2.0
 # About: Use unsupervised learning to detect intrusion/suspicious activities in http logs
 # Author: walid.daboubi@gmail.com
+# Reviewed: 2023/08/06 - Flight Zurich/Las Vegas
+
 
 import io
 import kneed
@@ -7,6 +10,8 @@ import argparse
 import pyfiglet
 import termcolor
 import sys
+import time
+import logging
 import numpy as np
 import pandas as pd
 import sklearn.cluster
@@ -14,7 +19,8 @@ import sklearn.neighbors
 import sklearn.preprocessing
 import sklearn.decomposition
 import matplotlib.pyplot as plt
-import logging
+import urllib3
+import requests
 
 from utilities import (
     parse_process_file,
@@ -23,70 +29,6 @@ from utilities import (
     gen_report,
     get_process_details,
 )
-
-
-parser = argparse.ArgumentParser()
-
-parser.add_argument("-l", "--log_file", help="The raw http log file", required=True)
-parser.add_argument("-t", "--log_type", help="apache or nginx", required=True)
-parser.add_argument(
-    "-e",
-    "--eps",
-    help="DBSCAN Epsilon value (Max distance between two points)",
-    required=False,
-)
-parser.add_argument(
-    "-s",
-    "--min_samples",
-    help="Minimum number of points with the same cluster. The default value is 2",
-    required=False,
-)
-parser.add_argument(
-    "-j",
-    "--log_lines_limit",
-    help="The maximum number of log lines of consider",
-    required=False,
-)
-parser.add_argument(
-    "-y", "--opt_lamda", help="Optimization lambda step", required=False
-)
-parser.add_argument(
-    "-m", "--minority_threshold", help="Minority clusters threshold", required=False
-)
-parser.add_argument(
-    "-p", "--show_plots", help="Show informative plots", action="store_true"
-)
-parser.add_argument(
-    "-o", "--standardize_data", help="Standardize feature values", action="store_true"
-)
-parser.add_argument("-r", "--report", help="Create a HTML report", action="store_true")
-parser.add_argument(
-    "-z", "--opt_silouhette", help="Optimize DBSCAN silouhette", action="store_true"
-)
-parser.add_argument("-b", "--debug", help="Activate debug logging", action="store_true")
-parser.add_argument(
-    "-c",
-    "--label_encoding",
-    help="Use label encoding instead of frequency encoding to encode categorical features",
-    action="store_true",
-)
-
-
-# This function makes two informative plots
-def plot_informative(x, y, z):
-    # 2D informational plot
-    logging.info("%sPlotting an informative 2 dimensional visualisation", " " * 4)
-    plt.plot(x, y, "ko")
-    plt.title("An informative visualisation of 2 selected  features")
-    plt.show()
-
-    # 3D informational plot
-    fig = plt.figure(figsize=(10, 7))
-    ax = plt.axes(projection="3d")
-    logging.info("%sPlotting an informative 3 dimensional visualisation", " " * 4)
-    ax.scatter3D(x, y, z, color="black")
-    plt.title("An informative visualisation of 3 selected  features")
-    plt.show()
 
 
 # This function returns takes as input a log_file and returns a dataframe
@@ -115,6 +57,28 @@ def get_data(log_file, log_type, log_size_limit, FEATURES, encoding_type):
         data = pd.read_csv(csvStringIO, sep=",").head(log_size_limit)
         data = data[FEATURES]
     return data
+
+
+# This function makes two informative plots
+def plot_data(data, title):
+    if len(data) == 2:
+        # 2D informational plot
+        logging.info(
+            "{} Plotting an informative 2 dimensional visualisation".format(" " * 4)
+        )
+        fig = plt.figure()
+        plt.plot(data[0], data[1], "ko")
+        plt.title(title)
+    if len(data) == 3:
+        # 3D informational plot
+        fig = plt.figure()
+        ax = plt.axes(projection="3d")
+        logging.info(
+            "{}Plotting an informative 3 dimensional visualisation".format(" " * 4)
+        )
+        ax.scatter3D(data[0], data[1], data[2], color="black")
+        plt.title(title)
+    plt.show()
 
 
 # This function returns the number of elements by cluster (including the outliers 'cluster')
@@ -180,11 +144,12 @@ def print_findings(findings, log_type):
 
 
 # This function plots the finding
-def plot_findings(dataframe, labels):
+def plot_findings(dataframe, labels, save_at):
     # Plot finddings
     unique_labels = set(labels)
     colors = [plt.cm.Spectral(each) for each in np.linspace(1, 0, len(unique_labels))]
     outliers_count = 0
+    fig = plt.figure()
     for index, row in dataframe.iterrows():
         label = labels[index]
         # Plot outliers
@@ -209,6 +174,8 @@ def plot_findings(dataframe, labels):
     plt.title(
         "Webhawk/Catch - {} Possible attack traces detected".format(outliers_count)
     )
+    if save_at is not None:
+        plt.savefig(save_at)
     plt.show()
 
 
@@ -264,7 +231,116 @@ def get_minority_clusters(elements_by_cluster, threshold):
     return minority_clusters
 
 
+def find_cves(findings):
+    bad_chars = ["/", "?", "=", "&", "%", "#"]
+    enriched_findings = []
+    checked_candidate_strings = {}
+    for finding in findings:
+        # Only find CVE for the high severity findings
+        if finding["severity"] == "high":
+            finding["cve"] = ""
+            final_requested_url = finding["log_line"].split('"')[1].split(" ")[1]
+            # Replace 'bad' chars by spaces
+            for bad_char in bad_chars:
+                final_requested_url = final_requested_url.replace(bad_char, " ")
+            for candidate_string in final_requested_url.split(" "):
+                if len(candidate_string) >= 10:
+                    try:
+                        if candidate_string not in checked_candidate_strings:
+                            checked_candidate_strings[candidate_string] = ""
+                            response = requests.get(
+                                "https://services.nvd.nist.gov/rest/json/cves/2.0?keywordSearch={}".format(
+                                    candidate_string
+                                ),
+                                verify=False,
+                            )
+
+                            max_cve_by_candidate_string = 10
+                            if (
+                                response.status_code == 200
+                                and "vulnerabilities" in response.json()
+                            ):
+                                for vuln in response.json()["vulnerabilities"]:
+                                    logging.info("{} found".format(vuln["cve"]["id"]))
+                                    max_cve_by_candidate_string -= 1
+                                    if max_cve_by_candidate_string == 0:
+                                        break
+                                    finding["cve"] += vuln["cve"]["id"] + " "
+                                    checked_candidate_strings[candidate_string] += (
+                                        vuln["cve"]["id"] + " "
+                                    )
+                                # Sleep to ne be blocked by services.nvd.nist.gov
+                                time.sleep(5)
+                        else:
+                            finding["cve"] += (
+                                checked_candidate_strings[candidate_string] + " "
+                            )
+                    except:
+                        logging.info("Something wrong getting CVE(s)")
+        enriched_findings.append(finding)
+    return enriched_findings
+
+
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-l", "--log_file", help="The raw http log file", required=True)
+    parser.add_argument("-t", "--log_type", help="apache or nginx", required=True)
+    parser.add_argument(
+        "-e",
+        "--eps",
+        help="DBSCAN Epsilon value (Max distance between two points)",
+        required=False,
+    )
+    parser.add_argument(
+        "-s",
+        "--min_samples",
+        help="Minimum number of points with the same cluster. The default value is 2",
+        required=False,
+    )
+    parser.add_argument(
+        "-j",
+        "--log_lines_limit",
+        help="The maximum number of log lines of consider",
+        required=False,
+    )
+    parser.add_argument(
+        "-y", "--opt_lamda", help="Optimization lambda step", required=False
+    )
+    parser.add_argument(
+        "-m", "--minority_threshold", help="Minority clusters threshold", required=False
+    )
+    parser.add_argument(
+        "-p", "--show_plots", help="Show informative plots", action="store_true"
+    )
+    parser.add_argument(
+        "-o",
+        "--standardize_data",
+        help="Standardize feature values",
+        action="store_true",
+    )
+    parser.add_argument(
+        "-r", "--report", help="Create a HTML report", action="store_true"
+    )
+    parser.add_argument(
+        "-z", "--opt_silouhette", help="Optimize DBSCAN silouhette", action="store_true"
+    )
+    parser.add_argument(
+        "-b", "--debug", help="Activate debug logging", action="store_true"
+    )
+    parser.add_argument(
+        "-c",
+        "--label_encoding",
+        help="Use label encoding instead of frequeny encoding to encode categorical features",
+        action="store_true",
+    )
+    parser.add_argument(
+        "-v",
+        "--find_cves",
+        help="Find the CVE(s) that are related to the attack traces",
+        action="store_true",
+    )
+    urllib3.disable_warnings()
+
     # Get parameters
     args = vars(parser.parse_args())
 
@@ -283,7 +359,7 @@ def main():
 
     FEATURES = [
         "params_number",
-        # 'size', # Stopped using size because it make a lot of false positive detections
+        #'size', # Stopped using size because it makes a lot of false positive detections
         "length",
         "upper_cases",
         "lower_cases",
@@ -339,19 +415,32 @@ def main():
     if args["show_plots"]:
         logging.info("\n> Informative plotting started")
         if args["log_type"] != "os_processes":
-            logging.info("%sPlotting http_query, url_depth and return_code", " " * 4)
-            plot_informative(data["http_query"], data["url_depth"], data["return_code"])
+            plot_data(
+                [data["http_query"], data["url_depth"]],
+                "Informative plot of http_query and url_depth",
+            )
+            plot_data(
+                [data["http_query"], data["url_depth"], data["return_code"]],
+                "Informative plot of http_query, url_depth and return_code",
+            )
         else:
-            logging.info("%sPlotting %%CPU, POWER and CYCLES", " " * 4)
-            plot_informative(data["%CPU"], data["POWER"], data["CYCLES"])
+            plot_data([data["%CPU"], data["POWER"]], "Plotting %CPU and POWER")
+            plot_data(
+                [data["%CPU"], data["POWER"], data["CYCLES"]],
+                "Plotting %CPU, POWER and CYCLES",
+            )
 
     # Dimensionality reduction to 2d using PCA
     pca = sklearn.decomposition.PCA(n_components=2)
     principal_components_df = pca.fit_transform(dataframe)
     dataframe = pd.DataFrame(data=principal_components_df, columns=["pc_1", "pc_2"])
 
+    # Display and plot data after applying PCA
     print(dataframe)
-    plot_informative(dataframe["pc_1"], dataframe["pc_2"], dataframe["pc_2"])
+    plot_data(
+        [dataframe["pc_1"], dataframe["pc_2"]],
+        "Data after dimensionality reduction using PCA",
+    )
 
     # Getting or setting epsilon
     if args["eps"] is None:
@@ -446,10 +535,6 @@ def main():
 
     all_findings = high_findings + medium_findings
 
-    # Generate a HTML report is required
-    if args["report"]:
-        gen_report(all_findings, args["log_file"], args["log_type"])
-
     # Number of clusters in labels, ignoring noise if present.
     n_noise = list(labels).count(-1)
 
@@ -470,8 +555,25 @@ def main():
     else:
         logging.info("No minority clusters found.")
 
-    # if args['show_plots']:
-    plot_findings(dataframe, labels)
+    # where to save the plot
+    save_plot_at = "./SCANS/scan_plot_{}".format(
+        args["log_file"].split("/")[-1].replace(".", "_")
+    )
+
+    # plot findings and save the plot if save_plot_at is defined
+    plot_findings(dataframe, labels, save_plot_at)
+
+    if args["find_cves"] is True:
+        logging.info("> Finding CVEs started")
+        all_findings = find_cves(all_findings)
+    # Generate a HTML report if requested
+    if args["report"]:
+        # find_cves(all_findings)
+        gen_report(
+            all_findings,
+            args["log_file"],
+            args["log_type"],
+        )
 
 
 if __name__ == "__main__":

@@ -34,7 +34,7 @@ def get_data(log_file, log_type, log_size_limit, FEATURES,encoding_type):
     else:
         try:
             encoded_logs = encode_log_file(log_file, log_type,encoding_type)
-        except:
+        except Exception as e:
             logging.info('Something went wrong encoding data.')
             sys.exit(1)
         try:
@@ -255,8 +255,8 @@ def find_cves(findings):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-l', '--log_file', help = 'The raw http log file', required = True)
-    parser.add_argument('-t', '--log_type', help = 'apache or nginx', required = True)
+    parser.add_argument('-l', '--log_file', help = 'The raw log file', required = True)
+    parser.add_argument('-t', '--log_type', help = 'apache, http, nginx or os_processes', required = True)
     parser.add_argument('-e', '--eps', help='DBSCAN Epsilon value (Max distance between two points)', required=False)
     parser.add_argument('-s', '--min_samples', help='Minimum number of points with the same cluster. The default value is 2', required=False)
     parser.add_argument('-j', '--log_lines_limit', help='The maximum number of log lines of consider', required=False)

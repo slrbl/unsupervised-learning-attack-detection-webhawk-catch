@@ -349,7 +349,7 @@ def gen_report(findings,log_file,log_type):
         if severity == 'medium':
             background='orange'
         if severity == 'high':
-            background=''
+            background='OrangeRed'
 
         if not log_type == 'os_processes':
             report_str+="""

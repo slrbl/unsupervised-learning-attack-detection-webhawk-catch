@@ -43,8 +43,15 @@ Copy settings_template.conf file to settings.conf and fill it with the required 
 features:length,params_number,return_code,size,upper_cases,lower_cases,special_chars,url_depth,user_agent,http_query,ip
 
 [LOG]
-apache:([(\d\.)]+) - - \[(.*?)\] "(.*?)" (\d+) (.+) "(.*?)" "(.*?)"
-nginx:([(\d\.)]+) - - \[(.*?)\] "(.*?)" (\d+) (\d+) (.+) "(.*?)" "(.*?)"
+apache_regex:([(\d\.)]+) - - \[(.*?)\] "(.*?)" (\d+) (.+) "(.*?)" "(.*?)"
+apache_names:["ip","date","query","code","size","referrer","user_agent"]
+
+nginx_regex:([(\d\.)]+) - - \[(.*?)\] "(.*?)" (\d+) (\d+) (.+) "(.*?)" "(.*?)"
+nginx_names:["ip","date","query","code","size","referrer","user_agent"]
+
+http_regex:^(\d*?\.\d*?)\t.*?\t(.*?)\t.*?\t.*?\t.*?\t.*?\t(.*?\t.*?\t.*?\t.*?)\t(.*?)\t.*?\t(.*?)\t(.*?)\t.*$
+http_names:["date","ip","query","user_agent","size","code"]
+
 apache_error:
 nginx_error:
 
@@ -63,9 +70,9 @@ usage: catch.py [-h] -l LOG_FILE -t LOG_TYPE [-e EPS] [-s MIN_SAMPLES] [-j LOG_L
 options:
   -h, --help            show this help message and exit
   -l LOG_FILE, --log_file LOG_FILE
-                        The raw http log file
+                        The raw log file
   -t LOG_TYPE, --log_type LOG_TYPE
-                        apache or nginx
+                        apache, http, nginx or os_processes
   -e EPS, --eps EPS     DBSCAN Epsilon value (Max distance between two points)
   -s MIN_SAMPLES, --min_samples MIN_SAMPLES
                         Minimum number of points with the same cluster. The default value is 2
@@ -87,13 +94,13 @@ options:
 ```
 
 
-### Example with HTTP logs
+### Example with apache logs
 
 Encoding is automatic for the unsupervised mode. You just need to run the catch.py script.
 Get inspired from this example:
 
 ```shell
-python catch.py -l ../HTTP_LOGS_DTATSETS/SECREPO_LOGS/access.log.2021-10-22 --log_type apache --show_plots --standardize_data --report
+python catch.py -l SAMPLE_DATA/RAW_APACHE_LOGS/access.log.2021-10-22 --log_type apache --show_plots --standardize_data --report
 ```
 
 The output of this command is:

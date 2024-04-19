@@ -74,10 +74,11 @@ def encode_single_line(single_line,features):
 
 # Encode a single log line/Extract features
 def encode_log_line(log_line,log_type,indices,categorical_fractions,encoding_type):
-    #print(indices)
+
     # log_type is apache for the moment
     try:
-        log_format = config['LOG'][log_type]
+        log_format = config['LOG'][log_type+"_regex"]    
+        log_names = ast.literal_eval(config['LOG'][log_type+"_names"])
     except:
         print('Log type \'{}\' not defined. \nMake sure "settings.conf" file exits and the log concerned type is defined.\nExiting'.format(log_type))
         sys.exit(1)
@@ -93,20 +94,21 @@ def encode_log_line(log_line,log_type,indices,categorical_fractions,encoding_typ
     # Getting log details for APACHE
     # Extracting the URL
 
-    ip = log_line[0]
-    http_query = log_line[2].split(' ')[0]
-    url="".join(log_line[2].split(' ')[1:])
+    ip = log_line[log_names.index("ip")]
+    http_query = log_line[log_names.index("query")].split(' ')[0]
+    url="".join(log_line[log_names.index("query")].split(' ')[1:])
     # The features that are currently taken in account are the following
-    return_code = log_line[3]
+    return_code = log_line[log_names.index("code")]
+    return_code = 0 if '-' in return_code else return_code
     params_number = len(url.split('&'))
     url_length = len(url)
-    size = str(log_line[4]).rstrip('\n')
+    size = str(log_line[log_names.index("size")]).rstrip('\n')
     url_depth = url.count("/")
     upper_cases = sum(1 for c in url if c.isupper())
     lower_cases = len(url) - upper_cases
     special_chars = sum(1 for c in url if c in SPECIAL_CHARS)
     size = 0 if '-' in size else int(size)
-    user_agent=log_line[6]
+    user_agent=log_line[log_names.index("user_agent")]
     if (int(return_code) > 0):
         log_line_data = {}
         log_line_data['size'] = size
@@ -161,7 +163,8 @@ def get_categorical_indices(log_file_content,log_type):
     for log_line in log_file_content:
         log_line=log_line.replace(',','#').replace(';','#')
         try:
-            log_format = config['LOG'][log_type]
+            log_format = config['LOG'][log_type+"_regex"]
+            log_names = ast.literal_eval(config['LOG'][log_type+"_names"])
         except:
             print('Log type \'{}\' not defined. \nMake sure "settings.conf" file exits and the log concerned type is defined.\nExiting'.format(log_type))
             sys.exit(1)
@@ -171,15 +174,15 @@ def get_categorical_indices(log_file_content,log_type):
             print('Log type \'{}\' doesn\'t fit your log fomat.\nExiting'.format(log_type))
             sys.exit(1)
 
-        http_query=log_line[2].split(' ')[0]
+        http_query=log_line[log_names.index("query")].split(' ')[0]
         if http_query not in incides['http_queries']:
             incides['http_queries'].append(http_query)
 
-        user_agent=log_line[6]
+        user_agent=log_line[log_names.index("user_agent")]
         if user_agent not in incides['user_agents']:
             incides['user_agents'].append(user_agent)
 
-        ip=log_line[0]
+        ip=log_line[log_names.index("ip")]
         if ip not in incides['ips']:
             incides['ips'].append(ip)
 
@@ -196,7 +199,8 @@ def get_categorical_fractions(log_file_content,log_type):
     for log_line in log_file_content:
         log_line=log_line.replace(',','#').replace(';','#')
         try:
-            log_format = config['LOG'][log_type]
+            log_format = config['LOG'][log_type+"_regex"]
+            log_names = ast.literal_eval(config['LOG'][log_type+"_names"])
         except:
             print('Log type \'{}\' not defined. \nMake sure "settings.conf" file exits and the log concerned type is defined.\nExiting'.format(log_type))
             sys.exit(1)
@@ -206,19 +210,21 @@ def get_categorical_fractions(log_file_content,log_type):
             print('Log type \'{}\' doesn\'t fit your log fomat.\nExiting'.format(log_type))
             sys.exit(1)
         data_count+=1
-        http_query=log_line[2].split(' ')[0]
+        
+        
+        http_query=log_line[log_names.index("query")].split(' ')[0]
         if http_query not in fractions['http_queries']:
             fractions['http_queries'][http_query] = 1
         else:
             fractions['http_queries'][http_query] +=1
 
-        user_agent=log_line[6]
+        user_agent=log_line[log_names.index("user_agent")]
         if user_agent not in fractions['user_agents']:
             fractions['user_agents'][user_agent] = 1
         else:
             fractions['user_agents'][user_agent] += 1
 
-        ip=log_line[0]
+        ip=log_line[log_names.index("ip")]
         if user_agent not in fractions['ips']:
             fractions['ips'][ip] = 1
         else:

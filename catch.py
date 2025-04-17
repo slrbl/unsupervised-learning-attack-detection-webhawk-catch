@@ -21,8 +21,21 @@ import requests
 
 from utilities import *
 
-# This function returns takes as input a log_file and returns a dataframe
-def get_data(log_file, log_type, log_size_limit, FEATURES,encoding_type):
+def get_data(log_file, log_type, log_size_limit, features, encoding_type):
+    """
+    Converts a log file to a dataframe
+
+    Parameters:
+    log_file (str): The file which contains the logs
+    log_type (str): The type of logs 
+    log_size_limit (int): Used to limit the number of lines to get from the log file 
+    features (str): A comma separated list of features
+    encoding_type (str): label_encoding or fraction encoding
+    
+
+    Returns:
+    str: A data frame 
+    """
     if log_type == 'os_processes':
         data = parse_process_file(log_file)
         data = pd.DataFrame.from_records(data)
@@ -45,7 +58,7 @@ def get_data(log_file, log_type, log_size_limit, FEATURES,encoding_type):
         # Get the raw log lines
         csvStringIO = io.StringIO(data_str)
         data = pd.read_csv(csvStringIO, sep=',').head(log_size_limit)
-        data = data[FEATURES]
+        data = data[features]
     return data
 
 

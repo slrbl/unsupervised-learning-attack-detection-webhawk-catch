@@ -64,6 +64,16 @@ def get_data(log_file, log_type, log_size_limit, features, encoding_type):
 
 # This function makes two informative plots
 def plot_data(data,title):
+    """
+    Makes informative plots 
+
+    Parameters:
+    data (list): The file which contains the logs
+    title (str): Title of the plot 
+    
+    Returns:
+    None
+    """
     if len(data) == 2:
         # 2D informational plot
         logging.info('{} Plotting an informative 2 dimensional visualisation'.format(' '*4))

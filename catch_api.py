@@ -2,7 +2,7 @@
 from catch import *
 
 # your_script.py
-def main(placeholder):
+def main(placeholder,logs_content):
 
 
     """
@@ -11,7 +11,7 @@ def main(placeholder):
 
     log_file="./SAMPLE_DATA/RAW_APACHE_LOGS/access.log.2025-05-23"
     log_type="apache"
-    LOG_LINES_LIMIT=1000
+    LOG_LINES_LIMIT=1000000
     FEATURES = [
         'params_number',
         #'size', # Stopped using size because it makes a lot of false positive detections
@@ -37,7 +37,8 @@ def main(placeholder):
     LAMBDA = float(opt_lamda) if opt_lamda is not None else 0.01
     THRESHOLD = int(minority_threshold) if minority_threshold else 5
 
-    log_file_content=open(log_file, 'r')
+    #log_file_content=open(log_file, 'r')
+    log_file_content=logs_content
 
     data = get_data(
         None, # No log_file as the logs as provided as a string

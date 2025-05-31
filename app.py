@@ -9,6 +9,7 @@ app = FastAPI()
 # Define input model
 class NameInput(BaseModel):
     placeholder: str
+    logs_content: str
 
 # Health check endpoint
 @app.get("/")
@@ -18,6 +19,6 @@ def root():
 # POST endpoint to log analysis
 @app.post("/scan")
 def scan(input: NameInput):
-    result = main(input.placeholder)
+    result = main(input.placeholder,input.logs_content)
     return {"result": result}
 

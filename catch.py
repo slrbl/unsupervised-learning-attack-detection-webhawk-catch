@@ -21,12 +21,13 @@ import requests
 
 from utilities import *
 
-def get_data(log_file, log_type, log_size_limit, features, encoding_type):
+def get_data(log_file, log_content, log_type, log_size_limit, features, encoding_type):
     """
     Converts a log file to a dataframe
 
     Parameters:
     log_file (str): The file which contains the logs
+    log_content (str): The content of the logs - when used log_file will be ignored 
     log_type (str): The type of logs 
     log_size_limit (int): Used to limit the number of lines to get from the log file 
     features (str): A comma separated list of features
@@ -46,7 +47,9 @@ def get_data(log_file, log_type, log_size_limit, features, encoding_type):
         data = data.drop(['PGRP', 'PPID', 'UID'], axis=1)
     else:
         try:
-            encoded_logs = encode_log_file(log_file, log_type,encoding_type)
+            if log_content==None:
+                log_content = open(log_file, 'r')
+            encoded_logs = encode_logs(log_content, log_type,encoding_type)
         except Exception as e:
             logging.info('Something went wrong encoding data.')
             sys.exit(1)
@@ -340,6 +343,7 @@ def main():
 
     data = get_data(
         args['log_file'],
+        None, # No log_content is required as the file path is provided 
         args['log_type'],
         LOG_LINES_LIMIT,
         FEATURES,

@@ -37,8 +37,11 @@ def main(placeholder):
     LAMBDA = float(opt_lamda) if opt_lamda is not None else 0.01
     THRESHOLD = int(minority_threshold) if minority_threshold else 5
 
+    log_file_content=open(log_file, 'r')
+
     data = get_data(
-        log_file,
+        None, # No log_file as the logs as provided as a string
+        log_file_content,
         log_type,
         LOG_LINES_LIMIT,
         FEATURES,

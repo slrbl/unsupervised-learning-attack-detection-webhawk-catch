@@ -135,13 +135,8 @@ def encode_log_line(log_line,log_type,indices,categorical_fractions,encoding_typ
     return url, log_line_data
 
 # Encode all the data in http log file (access_log)
-def encode_log_file(log_file,log_type,encoding_type):
+def encode_logs(log_file_content,log_type,encoding_type):
     data = {}
-    try:
-        log_file_content = open(log_file, 'r')
-    except:
-        logging.info('Something went wrong reading the input file.')
-        sys.exit(1)
     log_file_content=list(log_file_content)
     indices = get_categorical_indices(log_file_content,log_type)
     categorical_fractions = get_categorical_fractions(log_file_content,log_type)

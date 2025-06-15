@@ -282,6 +282,27 @@ def find_cves(findings):
     return enriched_findings
 
 
+def get_llm_insights(findings):
+    enriched_findings = []
+    for finding in findings:
+        finding['ai_advice'] = ''
+        final_requested_url = finding['log_line'].split('"')[1].split(' ')[1]
+        url=config['LLM']['url']
+        data = {
+                "model": config['LLM']['model'],
+                "prompt": (
+                    "{} {}".format(config['LLM']['prompt'],finding['log_line'])
+                ),
+                "stream": False,
+        }
+        response = requests.post(url, json=data)
+        finding['ai_advice'] = response.json()['response']
+        enriched_findings.append(finding)
+    return enriched_findings
+
+    
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-l', '--log_file', help = 'The raw log file', required = True)
@@ -298,6 +319,7 @@ def main():
     parser.add_argument('-b', '--debug', help = 'Activate debug logging', action='store_true')
     parser.add_argument('-c', '--label_encoding', help = 'Use label encoding instead of frequeny encoding to encode categorical features', action='store_true')
     parser.add_argument('-v', '--find_cves', help = 'Find the CVE(s) that are related to the attack traces', action='store_true')
+    parser.add_argument('-a', '--get_ai_advice', help = 'Get AI advice on the detection', action='store_true')
     urllib3.disable_warnings()
 
     # Get parameters
@@ -480,6 +502,10 @@ def main():
     if args['find_cves'] == True:
         logging.info('> Finding CVEs started')
         all_findings = find_cves(all_findings)
+    if args['get_ai_advice'] == True:
+        logging.info('> Getting AI advice')
+        all_findings = get_llm_insights(all_findings)
+
     # Generate a HTML report if requested
     if args['report']:
         #find_cves(all_findings)

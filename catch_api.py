@@ -1,13 +1,8 @@
 
 from catch import *
 
-# your_script.py
 def main(placeholder,logs_content):
 
-
-    """
-    python catch.py -l SAMPLE_DATA/RAW_APACHE_LOGS/access.log.2025-05-23 --log_type apache --show_plots --standardize_data --report
-    """
 
     log_file="./SAMPLE_DATA/RAW_APACHE_LOGS/access.log.2025-05-23"
     log_type="apache"

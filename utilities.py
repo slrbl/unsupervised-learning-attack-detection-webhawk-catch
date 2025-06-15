@@ -300,7 +300,8 @@ def gen_report(findings,log_file,log_type):
                     <td style="width:5%">Severity</td>
                     <td style="width:8%">Related CVE(s)</td>
                     <td style="width:4%">{}</td>
-                    <td style="width:83%">Log line</td>
+                    <td style="width:40%">LLM Insights</td>
+                    <td style="width:43%">Log line</td>
                 </tr>
 
         """.format(gmt_time,log_file,log_type,len(findings),report_file_path.replace('result','plot').replace('html','png').replace('./SCANS','.'),'Line#')
@@ -347,14 +348,16 @@ def gen_report(findings,log_file,log_type):
             background='OrangeRed'
 
         if not log_type == 'os_processes':
+            ai_advice=finding['ai_advice'] if 'ai_advice' in finding else 'N/A'
             report_str+="""
                 <tr>
                     <td style="background:{};text-align:center;color:whitesmoke">{}</td>
                     <td>{}</td>
                     <td>{}</td>
                     <td>{}</td>
+                    <td style="word-break: break-word; white-space: normal;">{}</td>
                 </tr>
-            """.format(background,severity.capitalize(),cves,finding['log_line_number']+1,finding['log_line'])
+            """.format(background,severity.capitalize(),cves,finding['log_line_number']+1,ai_advice,finding['log_line'])
         else:
             report_str+="""
                 <tr>

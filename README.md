@@ -133,7 +133,7 @@ You can then run the catch.py to detect potential abnormal OS processes:
 python catch.py -l PATH/os_processes.txt --log_type os_processes --show_plots --standardize_data --report
 ```
 
-### API usage
+## Webhawk API
 Webhawk API can be launched using the following command:
 ```shell
 uvicorn app:app --reload

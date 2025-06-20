@@ -262,16 +262,18 @@ def find_cves(findings):
                         if candidate_string not in checked_candidate_strings:
                             checked_candidate_strings[candidate_string] = ''
                             response = requests.get('https://services.nvd.nist.gov/rest/json/cves/2.0?keywordSearch={}'.format(candidate_string),verify=False)
-
                             max_cve_by_candidate_string = 10
                             if response.status_code == 200 and 'vulnerabilities' in response.json():
                                 for vuln in response.json()['vulnerabilities']:
-                                    logging.info('{} found'.format(vuln['cve']['id']))
-                                    max_cve_by_candidate_string -= 1
-                                    if max_cve_by_candidate_string == 0:
-                                        break
-                                    finding['cve'] += vuln['cve']['id']+' '
-                                    checked_candidate_strings[candidate_string]+=vuln['cve']['id']+' '
+                                    # Get only the most recent CVE
+                                    cve_year=int(vuln['cve']['id'].split('-')[1])
+                                    if cve_year>=int(config['CVE']['year_threshold']):
+                                        logging.info('{} found'.format(vuln['cve']['id']))
+                                        max_cve_by_candidate_string -= 1
+                                        if max_cve_by_candidate_string == 0:
+                                            break
+                                        finding['cve'] += vuln['cve']['id']+' '
+                                        checked_candidate_strings[candidate_string]+=vuln['cve']['id']+' '
                                 # Sleep to ne be blocked by services.nvd.nist.gov
                                 time.sleep(5)
                         else:
@@ -284,7 +286,11 @@ def find_cves(findings):
 
 def get_llm_insights(findings):
     enriched_findings = []
+    current=1
+    count=len(findings)
     for finding in findings:
+        logging.info('> Getting AI advice {}/{}'.format(current,count))
+        current+=1
         finding['ai_advice'] = ''
         final_requested_url = finding['log_line'].split('"')[1].split(' ')[1]
         url=config['LLM']['url']
@@ -320,6 +326,7 @@ def main():
     parser.add_argument('-c', '--label_encoding', help = 'Use label encoding instead of frequeny encoding to encode categorical features', action='store_true')
     parser.add_argument('-v', '--find_cves', help = 'Find the CVE(s) that are related to the attack traces', action='store_true')
     parser.add_argument('-a', '--get_ai_advice', help = 'Get AI advice on the detection', action='store_true')
+    parser.add_argument('-q', '--quick_scan', help = 'Only most critical detection (no minority clusters)', action='store_true')
     urllib3.disable_warnings()
 
     # Get parameters
@@ -456,7 +463,11 @@ def main():
     number_of_clusters = len(elements_by_cluster.values())
 
     # Get top minority clusters
-    minority_clusters = get_minority_clusters(elements_by_cluster,THRESHOLD)
+    if args['quick_scan']==True:
+        minority_clusters=[]
+    else:
+        minority_clusters = get_minority_clusters(elements_by_cluster,THRESHOLD)
+        
 
     # Outliers are considred as high severity findings
 
@@ -491,7 +502,7 @@ def main():
     if len(minority_clusters)>0:
         logging.info('The minority clusters are:{}'.format(minority_clusters))
     else:
-        logging.info('No minority clusters found.')
+        logging.info('No minority clusters found, or you selected a quick scan')
 
     #where to save the plot
     save_plot_at ='./SCANS/scan_plot_{}'.format(args['log_file'].split('/')[-1].replace('.','_'))
@@ -512,6 +523,7 @@ def main():
         gen_report(
             all_findings,args['log_file'],
             args['log_type'],
+            config['LLM']['model']
             )
 
 

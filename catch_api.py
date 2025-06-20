@@ -172,6 +172,7 @@ def main(placeholder,logs_content):
         gen_report(
             all_findings,log_file,
             log_type,
+            config['LLM']['model']
             )
     
     return all_findings

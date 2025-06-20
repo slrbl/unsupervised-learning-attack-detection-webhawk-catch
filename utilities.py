@@ -372,6 +372,7 @@ def gen_report(findings,log_file,log_type,llm_model):
 
     with open(report_file_path,'w') as result_file:
         result_file.write(report_str)
+    return report_file_path
 
 def get_process_details(pid):
     process_details_attributes = ast.literal_eval(config['PROCESS_DETAILS']['attributes'])

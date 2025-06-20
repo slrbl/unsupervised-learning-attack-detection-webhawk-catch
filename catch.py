@@ -5,19 +5,23 @@
 
 
 import io
+import os
 import kneed
 import argparse
 import pyfiglet
 import termcolor
+import urllib3
+import requests
 import numpy as np
 import pandas as pd
+import webbrowser
 import sklearn.cluster
 import sklearn.neighbors
 import sklearn.preprocessing
 import sklearn.decomposition
 import matplotlib.pyplot as plt
-import urllib3
-import requests
+from rich import print as rich_print
+
 
 from utilities import *
 
@@ -145,9 +149,9 @@ def catch(labels, data, label, log_type):
 def print_findings(findings, log_type):
     for finding in findings:
         if not log_type == 'os_processes':
-            logging.info('\n\t/!\ Webhawk {} - Possible anomalous behaviour detected at line:{}'.format(finding['severity'], finding['log_line_number']))
+            logging.info('\n\t Webhawk {} - Possible anomalous behaviour detected at line:{}'.format(finding['severity'], finding['log_line_number']))
         else:
-            logging.info('\n\t/!\ Webhawk {} - Possible anomalous behaviour detected at line:{}'.format(finding['severity'], finding['pid']))
+            logging.info('\n\t Webhawk {} - Possible anomalous behaviour detected at line:{}'.format(finding['severity'], finding['pid']))
         logging.info('\t{}'.format(finding['log_line']))
 
 
@@ -275,7 +279,7 @@ def find_cves(findings):
                                         finding['cve'] += vuln['cve']['id']+' '
                                         checked_candidate_strings[candidate_string]+=vuln['cve']['id']+' '
                                 # Sleep to ne be blocked by services.nvd.nist.gov
-                                time.sleep(5)
+                                time.sleep(10)
                         else:
                             finding['cve'] += checked_candidate_strings[candidate_string] + ' '
                     except:
@@ -360,7 +364,15 @@ def main():
 
 
     print('\n')
-    print((termcolor.colored(pyfiglet.figlet_format('Webhawk / Catch 2.0',font = 'banner3', width=600), color='yellow')))
+    #print((termcolor.colored(pyfiglet.figlet_format('Webhawk 3.0',font = 'univers', width=600), color='red')))
+
+    
+
+    rich_print("[bold red]>>> Webhawk v3.0[/bold red]")
+    rich_print("[bold red]>>> Attack detection using machine learning[/bold red]")
+
+    rich_print("[dim]Author: walid.daboubi@gmail.com[/dim]")
+    print('\n')
 
 
     logging.info('\n> Webhawk Catch 2.0')
@@ -380,8 +392,6 @@ def main():
         LOG_LINES_LIMIT,
         FEATURES,
         encoding_type)
-
-    print(data)
 
     # convert to a dataframe
     if args['log_type'] != 'os_processes':
@@ -412,7 +422,6 @@ def main():
         columns = ['pc_1', 'pc_2'])
 
     # Display and plot data after applying PCA
-    print(dataframe)
     plot_data([dataframe['pc_1'],dataframe['pc_2']],'Data after dimensiality reduction using PCA')
 
 
@@ -497,7 +506,7 @@ def main():
     logging.info('Estimated number of outliers/anomalous points: %d' % n_noise)
     logging.info('DBSCAN Silhouette Coefficient: %0.3f' % sklearn.metrics.silhouette_score(dataframe, labels))
     logging.info('{} log lines detected as containing potential malicious behaviour traces'.format(list(labels).count(-1)))
-    logging.info('Number of log lines by cluster:{}'.format(find_elements_by_cluster(labels)))
+    #logging.info('Number of log lines by cluster:{}'.format(find_elements_by_cluster(labels)))
     logging.info('\nTotal number of log lines:{}'.format(len(data)))
     if len(minority_clusters)>0:
         logging.info('The minority clusters are:{}'.format(minority_clusters))
@@ -520,11 +529,12 @@ def main():
     # Generate a HTML report if requested
     if args['report']:
         #find_cves(all_findings)
-        gen_report(
+        report_file=gen_report(
             all_findings,args['log_file'],
             args['log_type'],
             config['LLM']['model']
             )
+        webbrowser.open('file://{}/{}'.format(os.getcwd(),report_file))
 
 
 if __name__ == '__main__':
